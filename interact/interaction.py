@@ -25,6 +25,7 @@ max_history = 50
 
 
 class Interaction:
+
     def __init__(self, image, prev_mask, true_size, controller):
         self.image = image  # This image is PADDED
         self.prev_mask = prev_mask.clone()  # This is also PADDED
@@ -50,9 +51,8 @@ class Interaction:
 class LocalInteraction(Interaction):
     # This interaction compress all the interactions done in the local stage into one
     # Performs stitching
-    def __init__(
-        self, image, prev_mask, true_size, bounding_box, region_prob, pad, local_pad
-    ):
+    def __init__(self, image, prev_mask, true_size, bounding_box, region_prob,
+                 pad, local_pad):
         super().__init__(image, prev_mask, true_size, None)
         lx, ux, ly, uy = bounding_box
         self.out_prob = unpad(self.prev_mask, pad)
@@ -64,12 +64,12 @@ class LocalInteraction(Interaction):
             ux -= 3
             ly += 3
             uy -= 3
-            self.out_prob[:, :, ly : uy + 1, lx : ux + 1] = region_prob[
-                :, :, 3:-3, 3:-3
-            ]
+            self.out_prob[:, :, ly:uy + 1, lx:ux + 1] = region_prob[:, :, 3:-3,
+                                                                    3:-3]
         else:
-            self.out_prob[:, :, ly : uy + 1, lx : ux + 1] = region_prob
-        self.out_prob, _ = pad_divide_by(self.out_prob, 16, self.out_prob.shape[-2:])
+            self.out_prob[:, :, ly:uy + 1, lx:ux + 1] = region_prob
+        self.out_prob, _ = pad_divide_by(self.out_prob, 16,
+                                         self.out_prob.shape[-2:])
         self.out_mask = aggregate_sbg(self.out_prob, keep_bg=True)
         self.storage = None  # Might be used outside
 
@@ -89,15 +89,15 @@ class CropperInteraction(Interaction):
 
         self.bounding_box = bounding_box  # UN-PADDED
         unpad_prev_mask = unpad(self.prev_mask, pad)
-        self.out_prob = unpad_prev_mask[:, :, ly : uy + 1, lx : ux + 1]
-        self.out_prob, self.pad = pad_divide_by(
-            self.out_prob, 16, self.out_prob.shape[-2:]
-        )
+        self.out_prob = unpad_prev_mask[:, :, ly:uy + 1, lx:ux + 1]
+        self.out_prob, self.pad = pad_divide_by(self.out_prob, 16,
+                                                self.out_prob.shape[-2:])
         self.out_mask = aggregate_sbg(self.out_prob, keep_bg=True)
 
         unpad_image = unpad(self.image, pad)
-        self.im_crop = unpad_image[:, :, ly : uy + 1, lx : ux + 1]
-        self.im_crop, _ = pad_divide_by(self.im_crop, 16, self.im_crop.shape[-2:])
+        self.im_crop = unpad_image[:, :, ly:uy + 1, lx:ux + 1]
+        self.im_crop, _ = pad_divide_by(self.im_crop, 16,
+                                        self.im_crop.shape[-2:])
 
     def can_undo(self):
         return False
@@ -107,6 +107,7 @@ class CropperInteraction(Interaction):
 
 
 class FreeInteraction(Interaction):
+
     def __init__(self, image, prev_mask, true_size, num_objects, pad):
         """
         prev_mask should be in probabilities
@@ -151,16 +152,20 @@ class FreeInteraction(Interaction):
                 if k == 0:
                     vis_map = cv2.line(
                         vis_map,
-                        (int(round(selected[-2][0])), int(round(selected[-2][1]))),
-                        (int(round(selected[-1][0])), int(round(selected[-1][1]))),
+                        (int(round(
+                            selected[-2][0])), int(round(selected[-2][1]))),
+                        (int(round(
+                            selected[-1][0])), int(round(selected[-1][1]))),
                         color_map[k],
                         thickness=self.size,
                     )
                 else:
                     vis_map = cv2.line(
                         vis_map,
-                        (int(round(selected[-2][0])), int(round(selected[-2][1]))),
-                        (int(round(selected[-1][0])), int(round(selected[-1][1]))),
+                        (int(round(
+                            selected[-2][0])), int(round(selected[-2][1]))),
+                        (int(round(
+                            selected[-1][0])), int(round(selected[-1][1]))),
                         color_map[k],
                         thickness=self.size,
                     )
@@ -185,7 +190,8 @@ class FreeInteraction(Interaction):
 
     def predict(self):
         self.out_prob = torch.from_numpy(self.drawn_map).float().to(device)
-        self.out_prob, _ = pad_divide_by(self.out_prob, 16, self.out_prob.shape[-2:])
+        self.out_prob, _ = pad_divide_by(self.out_prob, 16,
+                                         self.out_prob.shape[-2:])
         self.out_mask = aggregate_sbg(self.out_prob, keep_bg=True)
         return self.out_mask
 
@@ -201,12 +207,12 @@ class FreeInteraction(Interaction):
         return self.predict()
 
     def can_undo(self):
-        return (len(self.history) > 0) and not (
-            self.surplus_history and (len(self.history) < 2)
-        )
+        return (len(self.history) > 0) and not (self.surplus_history and
+                                                (len(self.history) < 2))
 
 
 class ScribbleInteraction(Interaction):
+
     def __init__(self, image, prev_mask, true_size, controller, num_objects):
         """
         prev_mask should be in an indexed form
@@ -248,16 +254,20 @@ class ScribbleInteraction(Interaction):
                 if k == 0:
                     vis_map = cv2.line(
                         vis_map,
-                        (int(round(selected[-2][0])), int(round(selected[-2][1]))),
-                        (int(round(selected[-1][0])), int(round(selected[-1][1]))),
+                        (int(round(
+                            selected[-2][0])), int(round(selected[-2][1]))),
+                        (int(round(
+                            selected[-1][0])), int(round(selected[-1][1]))),
                         color_map[k],
                         thickness=self.size,
                     )
                 else:
                     vis_map = cv2.line(
                         vis_map,
-                        (int(round(selected[-2][0])), int(round(selected[-2][1]))),
-                        (int(round(selected[-1][0])), int(round(selected[-1][1]))),
+                        (int(round(
+                            selected[-2][0])), int(round(selected[-2][1]))),
+                        (int(round(
+                            selected[-1][0])), int(round(selected[-1][1]))),
                         color_map[k],
                         thickness=self.size,
                     )
@@ -282,9 +292,8 @@ class ScribbleInteraction(Interaction):
         self.surplus_history = True
 
     def predict(self):
-        self.out_prob = self.controller.interact(
-            self.image, self.prev_mask, self.drawn_map
-        )
+        self.out_prob = self.controller.interact(self.image, self.prev_mask,
+                                                 self.drawn_map)
         self.out_mask = aggregate_wbg(self.out_prob, keep_bg=True, hard=True)
         return self.out_mask
 
@@ -300,12 +309,12 @@ class ScribbleInteraction(Interaction):
         return self.predict()
 
     def can_undo(self):
-        return (len(self.history) > 0) and not (
-            self.surplus_history and (len(self.history) < 2)
-        )
+        return (len(self.history) > 0) and not (self.surplus_history and
+                                                (len(self.history) < 2))
 
 
 class ClickInteraction(Interaction):
+
     def __init__(self, image, prev_mask, true_size, controller, tar_obj, pad):
         """
         prev_mask in a prob. form
@@ -334,9 +343,8 @@ class ClickInteraction(Interaction):
             self.pos_clicks.append((x, y))
 
         # Do the prediction, note that the image is padded
-        self.obj_mask = self.controller.interact(
-            self.image, x + self.pad[0], y + self.pad[2], not neg
-        )
+        self.obj_mask = self.controller.interact(self.image, x + self.pad[0],
+                                                 y + self.pad[2], not neg)
         self.history.append(deepcopy((self.pos_clicks, self.neg_clicks)))
         self.surplus_history = True
 
@@ -361,9 +369,10 @@ class ClickInteraction(Interaction):
                     thickness=-1,
                 )
 
-            vis_alpha = cv2.circle(
-                vis_alpha, (int(round(x)), int(round(y))), 2, 1, thickness=-1
-            )
+            vis_alpha = cv2.circle(vis_alpha, (int(round(x)), int(round(y))),
+                                   2,
+                                   1,
+                                   thickness=-1)
 
             # Optional vis return
             return vis_map, vis_alpha
@@ -385,6 +394,5 @@ class ClickInteraction(Interaction):
         return self.predict()
 
     def can_undo(self):
-        return (len(self.history) > 0) and not (
-            self.surplus_history and (len(self.history) < 2)
-        )
+        return (len(self.history) > 0) and not (self.surplus_history and
+                                                (len(self.history) < 2))

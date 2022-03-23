@@ -11,13 +11,18 @@ from model.propagation.modules import *
 
 
 class Decoder(nn.Module):
+
     def __init__(self):
         super().__init__()
         self.compress = ResBlock(1024, 512)
         self.up_16_8 = UpsampleBlock(512, 512, 256)  # 1/16 -> 1/8
         self.up_8_4 = UpsampleBlock(256, 256, 256)  # 1/8 -> 1/4
 
-        self.pred = nn.Conv2d(256, 1, kernel_size=(3, 3), padding=(1, 1), stride=1)
+        self.pred = nn.Conv2d(256,
+                              1,
+                              kernel_size=(3, 3),
+                              padding=(1, 1),
+                              stride=1)
 
     def forward(self, f16, f8, f4):
         x = self.compress(f16)
@@ -26,7 +31,10 @@ class Decoder(nn.Module):
 
         x = self.pred(F.relu(x))
 
-        x = F.interpolate(x, scale_factor=4, mode="bilinear", align_corners=False)
+        x = F.interpolate(x,
+                          scale_factor=4,
+                          mode="bilinear",
+                          align_corners=False)
         return x
 
 
@@ -39,7 +47,7 @@ def make_gaussian(y_idx, x_idx, height, width, sigma=7):
     y_idx = y_idx.transpose(0, 1)
     x_idx = x_idx.transpose(0, 1)
 
-    g = torch.exp(-((yv - y_idx) ** 2 + (xv - x_idx) ** 2) / (2 * sigma**2))
+    g = torch.exp(-((yv - y_idx)**2 + (xv - x_idx)**2) / (2 * sigma**2))
 
     return g
 
@@ -74,6 +82,7 @@ def softmax_w_g_top(x, top=None, gauss=None):
 
 
 class EvalMemoryReader(nn.Module):
+
     def __init__(self, top_k, km):
         super().__init__()
         self.top_k = top_k
@@ -98,12 +107,13 @@ class EvalMemoryReader(nn.Module):
             g = make_gaussian(y_idx, x_idx, H, W, sigma=self.km)
             g = g.view(B, T * H * W, H * W)
 
-            affinity = softmax_w_g_top(affinity, top=self.top_k, gauss=g)  # B, THW, HW
+            affinity = softmax_w_g_top(affinity, top=self.top_k,
+                                       gauss=g)  # B, THW, HW
         else:
             if self.top_k is not None:
-                affinity = softmax_w_g_top(
-                    affinity, top=self.top_k, gauss=None
-                )  # B, THW, HW
+                affinity = softmax_w_g_top(affinity,
+                                           top=self.top_k,
+                                           gauss=None)  # B, THW, HW
             else:
                 affinity = F.softmax(affinity, dim=1)
 
@@ -120,6 +130,7 @@ class EvalMemoryReader(nn.Module):
 
 
 class AttentionMemory(nn.Module):
+
     def __init__(self, k):
         super().__init__()
         self.k = k
@@ -144,6 +155,7 @@ class AttentionMemory(nn.Module):
 
 
 class PropagationNetwork(nn.Module):
+
     def __init__(self, top_k=20):
         super().__init__()
         self.value_encoder = ValueEncoder()
@@ -166,10 +178,9 @@ class PropagationNetwork(nn.Module):
         if k != 1:
             others = torch.cat(
                 [
-                    torch.sum(
-                        masks[[j for j in range(k) if i != j]], dim=0, keepdim=True
-                    )
-                    for i in range(k)
+                    torch.sum(masks[[j for j in range(k) if i != j]],
+                              dim=0,
+                              keepdim=True) for i in range(k)
                 ],
                 0,
             )
@@ -194,7 +205,7 @@ class PropagationNetwork(nn.Module):
         batched = 1
         m4 = torch.cat(
             [
-                self.memory.readout(affinity, mv16[i : i + 1])
+                self.memory.readout(affinity, mv16[i:i + 1])
                 for i in range(0, k, batched)
             ],
             0,
@@ -216,16 +227,15 @@ class PropagationNetwork(nn.Module):
 
         W = self.get_W(mk16, qk16)
 
-        pos_map = (
-            F.interpolate(pos_mask, size=(nh, nw), mode="area").view(b, 1, nh * nw) @ W
-        )
-        neg_map = (
-            F.interpolate(neg_mask, size=(nh, nw), mode="area").view(b, 1, nh * nw) @ W
-        )
+        pos_map = (F.interpolate(pos_mask, size=(nh, nw), mode="area").view(
+            b, 1, nh * nw) @ W)
+        neg_map = (F.interpolate(neg_mask, size=(nh, nw), mode="area").view(
+            b, 1, nh * nw) @ W)
         attn_map = torch.cat([pos_map, neg_map], 1)
         attn_map = attn_map.reshape(b, 2, nh, nw)
-        attn_map = F.interpolate(
-            attn_map, mode="bilinear", size=(h, w), align_corners=False
-        )
+        attn_map = F.interpolate(attn_map,
+                                 mode="bilinear",
+                                 size=(h, w),
+                                 align_corners=False)
 
         return attn_map

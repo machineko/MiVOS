@@ -15,7 +15,6 @@ from davis_processor import DAVISProcessor
 from model.fusion_net import FusionNet
 from model.propagation.prop_net import PropagationNetwork
 from model.s2m.s2m_network import deeplabv3plus_resnet50 as S2M
-
 """
 Arguments loading
 """
@@ -36,14 +35,18 @@ save_mask = args.save_mask
 # Simple setup
 os.makedirs(out_path, exist_ok=True)
 palette = Image.open(
-    path.expanduser(davis_path + "/trainval/Annotations/480p/blackswan/00000.png")
-).getpalette()
+    path.expanduser(
+        davis_path +
+        "/trainval/Annotations/480p/blackswan/00000.png")).getpalette()
 
 torch.autograd.set_grad_enabled(False)
 
 # Setup Dataset
 test_dataset = DAVISTestDataset(davis_path + "/trainval", imset="2017/val.txt")
-test_loader = DataLoader(test_dataset, batch_size=1, shuffle=False, num_workers=2)
+test_loader = DataLoader(test_dataset,
+                         batch_size=1,
+                         shuffle=False,
+                         num_workers=2)
 
 images = {}
 num_objects = {}
@@ -74,10 +77,10 @@ user_iter = 0
 last_seq = None
 pred_masks = None
 with DavisInteractiveSession(
-    davis_root=davis_path + "/trainval",
-    report_save_dir="../output",
-    max_nb_interactions=8,
-    max_time=8 * 30,
+        davis_root=davis_path + "/trainval",
+        report_save_dir="../output",
+        max_nb_interactions=8,
+        max_time=8 * 30,
 ) as sess:
     while sess.next():
         sequence, scribbles, new_seq = sess.get_scribbles(only_last=True)
@@ -104,7 +107,8 @@ with DavisInteractiveSession(
                     for i in range(len(pred_masks)):
                         img_E = Image.fromarray(pred_masks[i])
                         img_E.putpalette(palette)
-                        img_E.save(os.path.join(seq_path, "{:05d}.png".format(i)))
+                        img_E.save(
+                            os.path.join(seq_path, "{:05d}.png".format(i)))
 
                 if (last_seq is None) or (sequence != last_seq):
                     last_seq = sequence
@@ -118,4 +122,5 @@ with DavisInteractiveSession(
         total_iter += 1
 
     report = sess.get_report()
-    summary = sess.get_global_summary(save_file=path.join(out_path, "summary.json"))
+    summary = sess.get_global_summary(
+        save_file=path.join(out_path, "summary.json"))

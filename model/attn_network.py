@@ -11,6 +11,7 @@ from model.propagation.modules import *
 
 
 class AttentionMemory(nn.Module):
+
     def __init__(self, k=50):
         super().__init__()
         self.k = k
@@ -33,6 +34,7 @@ class AttentionMemory(nn.Module):
 
 
 class AttentionReadNetwork(nn.Module):
+
     def __init__(self):
         super().__init__()
         self.key_encoder = KeyEncoder()
@@ -59,32 +61,26 @@ class AttentionReadNetwork(nn.Module):
 
             W = self.memory(mk16, qk16)
 
-            pos_map1 = (
-                F.interpolate(pos_mask1, size=(nh, nw), mode="area").view(b, 1, nh * nw)
-                @ W
-            )
-            neg_map1 = (
-                F.interpolate(neg_mask1, size=(nh, nw), mode="area").view(b, 1, nh * nw)
-                @ W
-            )
+            pos_map1 = (F.interpolate(pos_mask1, size=(nh, nw),
+                                      mode="area").view(b, 1, nh * nw) @ W)
+            neg_map1 = (F.interpolate(neg_mask1, size=(nh, nw),
+                                      mode="area").view(b, 1, nh * nw) @ W)
             attn_map1 = torch.cat([pos_map1, neg_map1], 1)
             attn_map1 = attn_map1.reshape(b, 2, nh, nw)
-            attn_map1 = F.interpolate(
-                attn_map1, mode="bilinear", size=(h, w), align_corners=False
-            )
+            attn_map1 = F.interpolate(attn_map1,
+                                      mode="bilinear",
+                                      size=(h, w),
+                                      align_corners=False)
 
-            pos_map2 = (
-                F.interpolate(pos_mask2, size=(nh, nw), mode="area").view(b, 1, nh * nw)
-                @ W
-            )
-            neg_map2 = (
-                F.interpolate(neg_mask2, size=(nh, nw), mode="area").view(b, 1, nh * nw)
-                @ W
-            )
+            pos_map2 = (F.interpolate(pos_mask2, size=(nh, nw),
+                                      mode="area").view(b, 1, nh * nw) @ W)
+            neg_map2 = (F.interpolate(neg_mask2, size=(nh, nw),
+                                      mode="area").view(b, 1, nh * nw) @ W)
             attn_map2 = torch.cat([pos_map2, neg_map2], 1)
             attn_map2 = attn_map2.reshape(b, 2, nh, nw)
-            attn_map2 = F.interpolate(
-                attn_map2, mode="bilinear", size=(h, w), align_corners=False
-            )
+            attn_map2 = F.interpolate(attn_map2,
+                                      mode="bilinear",
+                                      size=(h, w),
+                                      align_corners=False)
 
         return attn_map1, attn_map2

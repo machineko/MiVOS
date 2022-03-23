@@ -11,6 +11,7 @@ from model.propagation import mod_resnet
 
 
 class ResBlock(nn.Module):
+
     def __init__(self, indim, outdim=None):
         super(ResBlock, self).__init__()
         if outdim == None:
@@ -18,7 +19,10 @@ class ResBlock(nn.Module):
         if indim == outdim:
             self.downsample = None
         else:
-            self.downsample = nn.Conv2d(indim, outdim, kernel_size=3, padding=1)
+            self.downsample = nn.Conv2d(indim,
+                                        outdim,
+                                        kernel_size=3,
+                                        padding=1)
 
         self.conv1 = nn.Conv2d(indim, outdim, kernel_size=3, padding=1)
         self.conv2 = nn.Conv2d(outdim, outdim, kernel_size=3, padding=1)
@@ -34,6 +38,7 @@ class ResBlock(nn.Module):
 
 
 class FeatureFusionBlock(nn.Module):
+
     def __init__(self, indim, outdim):
         super().__init__()
 
@@ -54,6 +59,7 @@ class FeatureFusionBlock(nn.Module):
 # This will be loaded and modified into the multiple objects version later (in stage 1/2/3)
 # See model.py (load_network) for the modification procedure
 class ValueEncoderSO(nn.Module):
+
     def __init__(self):
         super().__init__()
 
@@ -89,6 +95,7 @@ class ValueEncoderSO(nn.Module):
 
 # Multiple objects version, used in other times
 class ValueEncoder(nn.Module):
+
     def __init__(self):
         super().__init__()
 
@@ -123,6 +130,7 @@ class ValueEncoder(nn.Module):
 
 
 class KeyEncoder(nn.Module):
+
     def __init__(self):
         super().__init__()
         resnet = models.resnet50(pretrained=True)
@@ -148,6 +156,7 @@ class KeyEncoder(nn.Module):
 
 
 class UpsampleBlock(nn.Module):
+
     def __init__(self, skip_c, up_c, out_c, scale_factor=2):
         super().__init__()
         self.skip_conv = nn.Conv2d(skip_c, up_c, kernel_size=3, padding=1)
@@ -156,14 +165,16 @@ class UpsampleBlock(nn.Module):
 
     def forward(self, skip_f, up_f):
         x = self.skip_conv(skip_f)
-        x = x + F.interpolate(
-            up_f, scale_factor=self.scale_factor, mode="bilinear", align_corners=False
-        )
+        x = x + F.interpolate(up_f,
+                              scale_factor=self.scale_factor,
+                              mode="bilinear",
+                              align_corners=False)
         x = self.out_conv(x)
         return x
 
 
 class KeyProjection(nn.Module):
+
     def __init__(self, indim, keydim):
         super().__init__()
         self.key_proj = nn.Conv2d(indim, keydim, kernel_size=3, padding=1)
