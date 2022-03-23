@@ -16,7 +16,7 @@ from util.tensor_util import pad_divide_by, unpad
 from collections import deque
 from copy import deepcopy
 from interact.interactive_utils import color_map
-
+device = torch.device( "cuda" if torch.cuda.is_available() else "cpu" )
 
 max_history = 50
 
@@ -158,7 +158,7 @@ class FreeInteraction(Interaction):
         self.surplus_history = True
 
     def predict(self):
-        self.out_prob = torch.from_numpy(self.drawn_map).float().cuda()
+        self.out_prob = torch.from_numpy(self.drawn_map).float().to(device)
         self.out_prob, _ = pad_divide_by(self.out_prob, 16, self.out_prob.shape[-2:])
         self.out_mask = aggregate_sbg(self.out_prob, keep_bg=True)
         return self.out_mask
