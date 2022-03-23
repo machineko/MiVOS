@@ -27,10 +27,10 @@ Go to this repo: [STCN](https://github.com/hkchengrex/STCN).
 
 ### DAVIS Interactive Track
 
-| Model | AUC-J&F | J&F @ 60s |
-| --- |:--:|:---:|
-| MiVOS + STM best model | 87.9 | 88.5 |
-| MiVOS + STCN | 88.4 | 88.8 |
+| Model                  | AUC-J&F | J&F @ 60s |
+| ---------------------- | :-----: | :-------: |
+| MiVOS + STM best model |  87.9   |   88.5    |
+| MiVOS + STCN           |  88.4   |   88.8    |
 
 (Performance mostly bottlenecked by interaction. Speed-wise it improves quite a bit -- try the GUI.)
 
