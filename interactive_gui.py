@@ -5,53 +5,37 @@ The entry point for the user interface
 It is terribly long... GUI code is hard to write!
 """
 
-import sys
-import os
-from os import path
 import functools
+import os
+import sys
 from argparse import ArgumentParser
+from collections import deque
+from os import path
 
 import cv2
-from PIL import Image
 import numpy as np
 import torch
-from collections import deque
-
-from PyQt5.QtWidgets import (
-    QWidget,
-    QApplication,
-    QComboBox,
-    QHBoxLayout,
-    QLabel,
-    QPushButton,
-    QTextEdit,
-    QPlainTextEdit,
-    QVBoxLayout,
-    QSizePolicy,
-    QButtonGroup,
-    QSlider,
-    QShortcut,
-    QRadioButton,
-    QProgressBar,
-    QFileDialog,
-)
-
-from PyQt5.QtGui import QPixmap, QKeySequence, QImage, QTextCursor
-from PyQt5.QtCore import Qt, QTimer
+from PIL import Image
 from PyQt5 import QtCore
+from PyQt5.QtCore import Qt, QTimer
+from PyQt5.QtGui import QImage, QKeySequence, QPixmap, QTextCursor
+from PyQt5.QtWidgets import (QApplication, QButtonGroup, QComboBox,
+                             QFileDialog, QHBoxLayout, QLabel, QPlainTextEdit,
+                             QProgressBar, QPushButton, QRadioButton,
+                             QShortcut, QSizePolicy, QSlider, QTextEdit,
+                             QVBoxLayout, QWidget)
 
 from inference_core import InferenceCore
-from interact.s2m_controller import S2MController
 from interact.fbrs_controller import FBRSController
-from model.propagation.prop_net import PropagationNetwork
-from model.fusion_net import FusionNet
-from model.s2m.s2m_network import deeplabv3plus_resnet50 as S2M
-from util.tensor_util import unpad_3dim
-from util.palette import pal_color_map
-
-from interact.interactive_utils import *
 from interact.interaction import *
+from interact.interactive_utils import *
+from interact.s2m_controller import S2MController
 from interact.timer import Timer
+from model.fusion_net import FusionNet
+from model.propagation.prop_net import PropagationNetwork
+from model.s2m.s2m_network import deeplabv3plus_resnet50 as S2M
+from util.palette import pal_color_map
+from util.tensor_util import unpad_3dim
 
 torch.set_grad_enabled(False)
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")

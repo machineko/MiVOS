@@ -1,20 +1,19 @@
 import os
-from os import path
 from argparse import ArgumentParser
+from os import path
 
-import torch
-from torch.utils.data import Dataset, DataLoader
-import numpy as np
-from PIL import Image
 import cv2
+import numpy as np
+import torch
+from davisinteractive.session.session import DavisInteractiveSession
+from PIL import Image
+from torch.utils.data import DataLoader, Dataset
 
-from model.propagation.prop_net import PropagationNetwork
-from model.fusion_net import FusionNet
-from model.s2m.s2m_network import deeplabv3plus_resnet50 as S2M
 from dataset.davis_test_dataset import DAVISTestDataset
 from davis_processor import DAVISProcessor
-
-from davisinteractive.session.session import DavisInteractiveSession
+from model.fusion_net import FusionNet
+from model.propagation.prop_net import PropagationNetwork
+from model.s2m.s2m_network import deeplabv3plus_resnet50 as S2M
 
 """
 Arguments loading

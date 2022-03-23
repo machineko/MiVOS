@@ -1,17 +1,18 @@
 import os
+import time
 from os import path
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
-import time
 
-from model.fusion_net import FusionNet
-from model.attn_network import AttentionReadNetwork
 from model.aggregate import aggregate_wbg_channel
+from model.attn_network import AttentionReadNetwork
+from model.fusion_net import FusionNet
 from model.losses import LossComputer, iou_hooks
-from util.log_integrator import Integrator
 from util.image_saver import pool_fusion
+from util.log_integrator import Integrator
 
 
 class FusionModel:

@@ -7,15 +7,17 @@ undo is (sometimes partially) supported
 """
 
 
-import torch
-import numpy as np
-import cv2
 import time
-from model.aggregate import aggregate_sbg, aggregate_wbg
-from util.tensor_util import pad_divide_by, unpad
 from collections import deque
 from copy import deepcopy
+
+import cv2
+import numpy as np
+import torch
+
 from interact.interactive_utils import color_map
+from model.aggregate import aggregate_sbg, aggregate_wbg
+from util.tensor_util import pad_divide_by, unpad
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 

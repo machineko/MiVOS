@@ -7,8 +7,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torchvision import models
 
-from model.propagation import mod_resnet
-from model.propagation import cbam
+from model.propagation import cbam, mod_resnet
 
 
 class ResBlock(nn.Module):

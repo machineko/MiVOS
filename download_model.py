@@ -1,7 +1,7 @@
 import os
-import gdown
 import urllib.request
 
+import gdown
 
 os.makedirs("saves", exist_ok=True)
 print("Downloading propagation model...")

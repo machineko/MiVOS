@@ -4,13 +4,12 @@ Handles propagation and fusion
 See eval_semi_davis.py / eval_interactive_davis.py for examples
 """
 
-import torch
 import numpy as np
+import torch
 
-from model.propagation.prop_net import PropagationNetwork
-from model.fusion_net import FusionNet
 from model.aggregate import aggregate_wbg
-
+from model.fusion_net import FusionNet
+from model.propagation.prop_net import PropagationNetwork
 from util.tensor_util import pad_divide_by
 
 
