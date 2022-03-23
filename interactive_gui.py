@@ -40,7 +40,7 @@ from interact.interaction import *
 from interact.timer import Timer
 
 torch.set_grad_enabled(False)
-
+device = torch.device( "cuda" if torch.cuda.is_available() else "cpu" )
 # DAVIS palette
 palette = pal_color_map()
 
@@ -55,7 +55,7 @@ class App(QWidget):
         self.s2m_controller = s2m_ctrl
         self.fbrs_controller = fbrs_ctrl
         self.processor = InferenceCore(prop_net, fuse_net, images_to_torch(images, device='cpu'),
-                         num_objects, mem_freq=mem_freq, mem_profile=mem_profile)
+                         num_objects, mem_freq=mem_freq, mem_profile=mem_profile, device=device)
 
         self.num_frames, self.height, self.width = self.images.shape[:3]
 
@@ -973,13 +973,13 @@ if __name__ == '__main__':
     
     # Arguments parsing
     parser = ArgumentParser()
-    parser.add_argument('--prop_model', default='saves/propagation_model.pth')
-    parser.add_argument('--fusion_model', default='saves/fusion.pth')
+    parser.add_argument('--prop_model', default='saves/stcn.pth')
+    parser.add_argument('--fusion_model', default='saves/fusion_stcn.pth')
     parser.add_argument('--s2m_model', default='saves/s2m.pth')
     parser.add_argument('--fbrs_model', default='saves/fbrs.pth')
     parser.add_argument('--images', help='Folders containing input images. Either this or --video need to be specified.')
     parser.add_argument('--video', help='Video file readable by OpenCV. Either this or --images need to be specified.', default='example/example.mp4')
-    parser.add_argument('--num_objects', help='Default: 1 if no masks provided, masks.max() otherwise', type=int)
+    parser.add_argument('--num_objects', help='Default: 1 if no masks provided, masks.max() otherwise', type=int, default=3)
     parser.add_argument('--mem_freq', default=5, type=int)
     parser.add_argument('--mem_profile', default=0, type=int, help='0 - Faster and more memory intensive; 2 - Slower and less memory intensive. Default: 0.')
     parser.add_argument('--masks', help='Optional, Ground truth masks', default=None)
@@ -988,19 +988,20 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     with torch.cuda.amp.autocast(enabled=not args.no_amp):
+
         # Load our checkpoint
-        prop_saved = torch.load(args.prop_model)
-        prop_model = PropagationNetwork().cuda().eval()
+        prop_saved = torch.load(args.prop_model, map_location=device)
+        prop_model = PropagationNetwork().to(device).eval()
         prop_model.load_state_dict(prop_saved)
 
-        fusion_saved = torch.load(args.fusion_model)
-        fusion_model = FusionNet().cuda().eval()
+        fusion_saved = torch.load(args.fusion_model, map_location=device)
+        fusion_model = FusionNet().to(device).eval()
         fusion_model.load_state_dict(fusion_saved)
 
         # Loads the S2M model
         if args.s2m_model is not None:
-            s2m_saved = torch.load(args.s2m_model)
-            s2m_model = S2M().cuda().eval()
+            s2m_saved = torch.load(args.s2m_model, map_location=device)
+            s2m_model = S2M().to(device).eval()
             s2m_model.load_state_dict(s2m_saved)
         else:
             s2m_model = None
@@ -1026,9 +1027,9 @@ if __name__ == '__main__':
             else:
                 num_objects = 1
 
-        s2m_controller = S2MController(s2m_model, num_objects, ignore_class=255)
+        s2m_controller = S2MController(s2m_model, num_objects, ignore_class=255, device=device)
         if args.fbrs_model is not None:
-            fbrs_controller = FBRSController(args.fbrs_model)
+            fbrs_controller = FBRSController(args.fbrs_model, device=device)
         else:
             fbrs_controller = None
 

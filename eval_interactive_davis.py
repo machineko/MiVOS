@@ -20,8 +20,8 @@ from davisinteractive.session.session import DavisInteractiveSession
 Arguments loading
 """
 parser = ArgumentParser()
-parser.add_argument('--prop_model', default='saves/propagation_model.pth')
-parser.add_argument('--fusion_model', default='saves/fusion.pth')
+parser.add_argument('--prop_model', default='saves/stcn.pth')
+parser.add_argument('--fusion_model', default='saves/fusion_stcn.pth')
 parser.add_argument('--s2m_model', default='saves/s2m.pth')
 parser.add_argument('--davis', default='../DAVIS/2017')
 parser.add_argument('--output')
