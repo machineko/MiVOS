@@ -5,8 +5,6 @@ Not related to automatic evaluation in the DAVIS dataset
 You can inherit the Interaction class to create new interaction types
 undo is (sometimes partially) supported
 """
-
-
 import time
 from collections import deque
 from copy import deepcopy
@@ -16,8 +14,10 @@ import numpy as np
 import torch
 
 from interact.interactive_utils import color_map
-from model.aggregate import aggregate_sbg, aggregate_wbg
-from util.tensor_util import pad_divide_by, unpad
+from model.aggregate import aggregate_sbg
+from model.aggregate import aggregate_wbg
+from util.tensor_util import pad_divide_by
+from util.tensor_util import unpad
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 

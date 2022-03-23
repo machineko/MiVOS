@@ -3,7 +3,6 @@ Heart of most evaluation scripts (DAVIS semi-sup/interactive, GUI)
 Handles propagation and fusion
 See eval_semi_davis.py / eval_interactive_davis.py for examples
 """
-
 import numpy as np
 import torch
 

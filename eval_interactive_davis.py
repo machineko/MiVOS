@@ -7,7 +7,8 @@ import numpy as np
 import torch
 from davisinteractive.session.session import DavisInteractiveSession
 from PIL import Image
-from torch.utils.data import DataLoader, Dataset
+from torch.utils.data import DataLoader
+from torch.utils.data import Dataset
 
 from dataset.davis_test_dataset import DAVISTestDataset
 from davis_processor import DAVISProcessor

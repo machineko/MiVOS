@@ -1,13 +1,13 @@
 """
 modules.py - This file stores the rathering boring network blocks.
 """
-
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torchvision import models
 
-from model.propagation import cbam, mod_resnet
+from model.propagation import cbam
+from model.propagation import mod_resnet
 
 
 class ResBlock(nn.Module):

@@ -2,7 +2,6 @@
 mod_resnet.py - A modified ResNet structure
 We append extra channels to the first conv by some network surgery
 """
-
 import math
 from collections import OrderedDict
 

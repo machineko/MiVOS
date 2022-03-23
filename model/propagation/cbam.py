@@ -1,5 +1,4 @@
 # Modified from https://github.com/Jongchan/attention-module/blob/master/MODELS/cbam.py
-
 import torch
 import torch.nn as nn
 import torch.nn.functional as F

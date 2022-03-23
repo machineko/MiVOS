@@ -10,7 +10,8 @@ import torch.optim as optim
 from model.aggregate import aggregate_wbg_channel
 from model.attn_network import AttentionReadNetwork
 from model.fusion_net import FusionNet
-from model.losses import LossComputer, iou_hooks
+from model.losses import iou_hooks
+from model.losses import LossComputer
 from util.image_saver import pool_fusion
 from util.log_integrator import Integrator
 
