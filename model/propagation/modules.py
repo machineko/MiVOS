@@ -19,8 +19,7 @@ class ResBlock(nn.Module):
         if indim == outdim:
             self.downsample = None
         else:
-            self.downsample = nn.Conv2d(
-                indim, outdim, kernel_size=3, padding=1)
+            self.downsample = nn.Conv2d(indim, outdim, kernel_size=3, padding=1)
 
         self.conv1 = nn.Conv2d(indim, outdim, kernel_size=3, padding=1)
         self.conv2 = nn.Conv2d(outdim, outdim, kernel_size=3, padding=1)
@@ -78,9 +77,9 @@ class ValueEncoderSO(nn.Module):
 
         x = self.conv1(f)
         x = self.bn1(x)
-        x = self.relu(x)   # 1/2, 64
+        x = self.relu(x)  # 1/2, 64
         x = self.maxpool(x)  # 1/4, 64
-        x = self.layer1(x)   # 1/4, 64
+        x = self.layer1(x)  # 1/4, 64
         x = self.layer2(x)  # 1/8, 128
         x = self.layer3(x)  # 1/16, 256
 
@@ -113,9 +112,9 @@ class ValueEncoder(nn.Module):
 
         x = self.conv1(f)
         x = self.bn1(x)
-        x = self.relu(x)   # 1/2, 64
+        x = self.relu(x)  # 1/2, 64
         x = self.maxpool(x)  # 1/4, 64
-        x = self.layer1(x)   # 1/4, 64
+        x = self.layer1(x)  # 1/4, 64
         x = self.layer2(x)  # 1/8, 128
         x = self.layer3(x)  # 1/16, 256
 
@@ -140,9 +139,9 @@ class KeyEncoder(nn.Module):
     def forward(self, f):
         x = self.conv1(f)
         x = self.bn1(x)
-        x = self.relu(x)   # 1/2, 64
+        x = self.relu(x)  # 1/2, 64
         x = self.maxpool(x)  # 1/4, 64
-        f4 = self.res2(x)   # 1/4, 256
+        f4 = self.res2(x)  # 1/4, 256
         f8 = self.layer2(f4)  # 1/8, 512
         f16 = self.layer3(f8)  # 1/16, 1024
 
@@ -158,8 +157,9 @@ class UpsampleBlock(nn.Module):
 
     def forward(self, skip_f, up_f):
         x = self.skip_conv(skip_f)
-        x = x + F.interpolate(up_f, scale_factor=self.scale_factor,
-                              mode='bilinear', align_corners=False)
+        x = x + F.interpolate(
+            up_f, scale_factor=self.scale_factor, mode="bilinear", align_corners=False
+        )
         x = self.out_conv(x)
         return x
 

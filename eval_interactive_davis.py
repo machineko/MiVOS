@@ -20,12 +20,12 @@ from davisinteractive.session.session import DavisInteractiveSession
 Arguments loading
 """
 parser = ArgumentParser()
-parser.add_argument('--prop_model', default='saves/stcn.pth')
-parser.add_argument('--fusion_model', default='saves/fusion_stcn.pth')
-parser.add_argument('--s2m_model', default='saves/s2m.pth')
-parser.add_argument('--davis', default='../DAVIS/2017')
-parser.add_argument('--output')
-parser.add_argument('--save_mask', action='store_true')
+parser.add_argument("--prop_model", default="saves/stcn.pth")
+parser.add_argument("--fusion_model", default="saves/fusion_stcn.pth")
+parser.add_argument("--s2m_model", default="saves/s2m.pth")
+parser.add_argument("--davis", default="../DAVIS/2017")
+parser.add_argument("--output")
+parser.add_argument("--save_mask", action="store_true")
 
 args = parser.parse_args()
 
@@ -35,26 +35,26 @@ save_mask = args.save_mask
 
 # Simple setup
 os.makedirs(out_path, exist_ok=True)
-palette = Image.open(path.expanduser(
-    davis_path + '/trainval/Annotations/480p/blackswan/00000.png')).getpalette()
+palette = Image.open(
+    path.expanduser(davis_path + "/trainval/Annotations/480p/blackswan/00000.png")
+).getpalette()
 
 torch.autograd.set_grad_enabled(False)
 
 # Setup Dataset
-test_dataset = DAVISTestDataset(davis_path+'/trainval', imset='2017/val.txt')
-test_loader = DataLoader(test_dataset, batch_size=1,
-                         shuffle=False, num_workers=2)
+test_dataset = DAVISTestDataset(davis_path + "/trainval", imset="2017/val.txt")
+test_loader = DataLoader(test_dataset, batch_size=1, shuffle=False, num_workers=2)
 
 images = {}
 num_objects = {}
 # Loads all the images
 for data in test_loader:
-    rgb = data['rgb']
-    k = len(data['info']['labels'][0])
-    name = data['info']['name'][0]
+    rgb = data["rgb"]
+    k = len(data["info"]["labels"][0])
+    name = data["info"]["name"][0]
     images[name] = rgb
     num_objects[name] = k
-print('Finished loading %d sequences.' % len(images))
+print("Finished loading %d sequences." % len(images))
 
 # Load our checkpoint
 prop_saved = torch.load(args.prop_model)
@@ -73,17 +73,27 @@ total_iter = 0
 user_iter = 0
 last_seq = None
 pred_masks = None
-with DavisInteractiveSession(davis_root=davis_path+'/trainval', report_save_dir='../output', max_nb_interactions=8, max_time=8*30) as sess:
+with DavisInteractiveSession(
+    davis_root=davis_path + "/trainval",
+    report_save_dir="../output",
+    max_nb_interactions=8,
+    max_time=8 * 30,
+) as sess:
     while sess.next():
         sequence, scribbles, new_seq = sess.get_scribbles(only_last=True)
 
         if new_seq:
-            if 'processor' in locals():
+            if "processor" in locals():
                 # Note that ALL pre-computed features are flushed in this step
                 # We are not using pre-computed features for the same sequence with different user-id
                 del processor  # Should release some juicy mem
             processor = DAVISProcessor(
-                prop_model, fusion_model, s2m_model, images[sequence], num_objects[sequence])
+                prop_model,
+                fusion_model,
+                s2m_model,
+                images[sequence],
+                num_objects[sequence],
+            )
             print(sequence)
 
             # Save last time
@@ -94,8 +104,7 @@ with DavisInteractiveSession(davis_root=davis_path+'/trainval', report_save_dir=
                     for i in range(len(pred_masks)):
                         img_E = Image.fromarray(pred_masks[i])
                         img_E.putpalette(palette)
-                        img_E.save(os.path.join(
-                            seq_path, '{:05d}.png'.format(i)))
+                        img_E.save(os.path.join(seq_path, "{:05d}.png".format(i)))
 
                 if (last_seq is None) or (sequence != last_seq):
                     last_seq = sequence
@@ -109,5 +118,4 @@ with DavisInteractiveSession(davis_root=davis_path+'/trainval', report_save_dir=
         total_iter += 1
 
     report = sess.get_report()
-    summary = sess.get_global_summary(
-        save_file=path.join(out_path, 'summary.json'))
+    summary = sess.get_global_summary(save_file=path.join(out_path, "summary.json"))
