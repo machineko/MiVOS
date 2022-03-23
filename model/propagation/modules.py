@@ -19,15 +19,16 @@ class ResBlock(nn.Module):
         if indim == outdim:
             self.downsample = None
         else:
-            self.downsample = nn.Conv2d(indim, outdim, kernel_size=3, padding=1)
- 
+            self.downsample = nn.Conv2d(
+                indim, outdim, kernel_size=3, padding=1)
+
         self.conv1 = nn.Conv2d(indim, outdim, kernel_size=3, padding=1)
         self.conv2 = nn.Conv2d(outdim, outdim, kernel_size=3, padding=1)
- 
+
     def forward(self, x):
         r = self.conv1(F.relu(x))
         r = self.conv2(F.relu(r))
-        
+
         if self.downsample is not None:
             x = self.downsample(x)
 
@@ -64,9 +65,9 @@ class ValueEncoderSO(nn.Module):
         self.relu = resnet.relu  # 1/2, 64
         self.maxpool = resnet.maxpool
 
-        self.layer1 = resnet.layer1 # 1/4, 64
-        self.layer2 = resnet.layer2 # 1/8, 128
-        self.layer3 = resnet.layer3 # 1/16, 256
+        self.layer1 = resnet.layer1  # 1/4, 64
+        self.layer2 = resnet.layer2  # 1/8, 128
+        self.layer3 = resnet.layer3  # 1/16, 256
 
         self.fuser = FeatureFusionBlock(1024 + 256, 512)
 
@@ -80,8 +81,8 @@ class ValueEncoderSO(nn.Module):
         x = self.relu(x)   # 1/2, 64
         x = self.maxpool(x)  # 1/4, 64
         x = self.layer1(x)   # 1/4, 64
-        x = self.layer2(x) # 1/8, 128
-        x = self.layer3(x) # 1/16, 256
+        x = self.layer2(x)  # 1/8, 128
+        x = self.layer3(x)  # 1/16, 256
 
         x = self.fuser(x, key_f16)
 
@@ -99,9 +100,9 @@ class ValueEncoder(nn.Module):
         self.relu = resnet.relu  # 1/2, 64
         self.maxpool = resnet.maxpool
 
-        self.layer1 = resnet.layer1 # 1/4, 64
-        self.layer2 = resnet.layer2 # 1/8, 128
-        self.layer3 = resnet.layer3 # 1/16, 256
+        self.layer1 = resnet.layer1  # 1/4, 64
+        self.layer2 = resnet.layer2  # 1/8, 128
+        self.layer3 = resnet.layer3  # 1/16, 256
 
         self.fuser = FeatureFusionBlock(1024 + 256, 512)
 
@@ -115,13 +116,13 @@ class ValueEncoder(nn.Module):
         x = self.relu(x)   # 1/2, 64
         x = self.maxpool(x)  # 1/4, 64
         x = self.layer1(x)   # 1/4, 64
-        x = self.layer2(x) # 1/8, 128
-        x = self.layer3(x) # 1/16, 256
+        x = self.layer2(x)  # 1/8, 128
+        x = self.layer3(x)  # 1/16, 256
 
         x = self.fuser(x, key_f16)
 
         return x
- 
+
 
 class KeyEncoder(nn.Module):
     def __init__(self):
@@ -132,18 +133,18 @@ class KeyEncoder(nn.Module):
         self.relu = resnet.relu  # 1/2, 64
         self.maxpool = resnet.maxpool
 
-        self.res2 = resnet.layer1 # 1/4, 256
-        self.layer2 = resnet.layer2 # 1/8, 512
-        self.layer3 = resnet.layer3 # 1/16, 1024
+        self.res2 = resnet.layer1  # 1/4, 256
+        self.layer2 = resnet.layer2  # 1/8, 512
+        self.layer3 = resnet.layer3  # 1/16, 1024
 
     def forward(self, f):
-        x = self.conv1(f) 
+        x = self.conv1(f)
         x = self.bn1(x)
         x = self.relu(x)   # 1/2, 64
         x = self.maxpool(x)  # 1/4, 64
         f4 = self.res2(x)   # 1/4, 256
-        f8 = self.layer2(f4) # 1/8, 512
-        f16 = self.layer3(f8) # 1/16, 1024
+        f8 = self.layer2(f4)  # 1/8, 512
+        f16 = self.layer3(f8)  # 1/16, 1024
 
         return f16, f8, f4
 
@@ -157,7 +158,8 @@ class UpsampleBlock(nn.Module):
 
     def forward(self, skip_f, up_f):
         x = self.skip_conv(skip_f)
-        x = x + F.interpolate(up_f, scale_factor=self.scale_factor, mode='bilinear', align_corners=False)
+        x = x + F.interpolate(up_f, scale_factor=self.scale_factor,
+                              mode='bilinear', align_corners=False)
         x = self.out_conv(x)
         return x
 
@@ -169,6 +171,6 @@ class KeyProjection(nn.Module):
 
         nn.init.orthogonal_(self.key_proj.weight.data)
         nn.init.zeros_(self.key_proj.bias.data)
-    
+
     def forward(self, x):
         return self.key_proj(x)

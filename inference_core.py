@@ -13,11 +13,12 @@ from model.aggregate import aggregate_wbg
 
 from util.tensor_util import pad_divide_by
 
+
 class InferenceCore:
     """
     images - leave them in original dimension (unpadded), but do normalize them. 
             Should be CPU tensors of shape B*T*3*H*W
-            
+
     mem_profile - How extravagant I can use the GPU memory. 
                 Usually more memory -> faster speed but I have not drawn the exact relation
                 0 - Use the most memory
@@ -31,8 +32,9 @@ class InferenceCore:
                 Higher number -> less memory usage
                 Unlike the last option, this *is* a space-performance tradeoff
     """
-    def __init__(self, prop_net:PropagationNetwork, fuse_net:FusionNet, images, num_objects, 
-                    mem_profile=0, mem_freq=5, device='cuda:0'):
+
+    def __init__(self, prop_net: PropagationNetwork, fuse_net: FusionNet, images, num_objects,
+                 mem_profile=0, mem_freq=5, device='cuda:0'):
         self.prop_net = prop_net.to(device, non_blocking=True)
         if fuse_net is not None:
             self.fuse_net = fuse_net.to(device, non_blocking=True)
@@ -44,7 +46,7 @@ class InferenceCore:
             self.data_dev = device
             self.result_dev = device
             self.k_buf_size = 105
-            self.i_buf_size = -1 # no need to buffer image
+            self.i_buf_size = -1  # no need to buffer image
         elif mem_profile == 1:
             self.data_dev = 'cpu'
             self.result_dev = device
@@ -73,11 +75,13 @@ class InferenceCore:
         self.images = self.images.to(self.data_dev, non_blocking=False)
 
         # These two store the same information in different formats
-        self.masks = torch.zeros((t, 1, nh, nw), dtype=torch.uint8, device=self.result_dev)
+        self.masks = torch.zeros(
+            (t, 1, nh, nw), dtype=torch.uint8, device=self.result_dev)
         self.np_masks = np.zeros((t, h, w), dtype=np.uint8)
 
         # Object probabilities, background included
-        self.prob = torch.zeros((self.k+1, t, 1, nh, nw), dtype=torch.float32, device=self.result_dev)
+        self.prob = torch.zeros((self.k+1, t, 1, nh, nw),
+                                dtype=torch.float32, device=self.result_dev)
         self.prob[0] = 1e-7
 
         self.t, self.h, self.w = t, h, w
@@ -94,14 +98,14 @@ class InferenceCore:
 
     def get_image_buffered(self, idx):
         if self.data_dev == self.device:
-            return self.images[:,idx]
+            return self.images[:, idx]
 
         # buffer the .cuda() calls
         if idx not in self.image_buf:
             # Flush buffer
             if len(self.image_buf) > self.i_buf_size:
                 self.image_buf = {}
-        self.image_buf[idx] = self.images[:,idx].to(self.device)
+        self.image_buf[idx] = self.images[:, idx].to(self.device)
         result = self.image_buf[idx]
 
         return result
@@ -112,7 +116,8 @@ class InferenceCore:
             if len(self.key_buf) > self.k_buf_size:
                 self.key_buf = {}
 
-            self.key_buf[idx] = self.prop_net.encode_key(self.get_image_buffered(idx))
+            self.key_buf[idx] = self.prop_net.encode_key(
+                self.get_image_buffered(idx))
         result = self.key_buf[idx]
 
         return result
@@ -132,21 +137,26 @@ class InferenceCore:
 
         # Determine the required size of the memory bank
         if forward:
-            closest_ti = min([ti for ti in self.interacted if ti > idx] + [self.t])
-            total_m = (closest_ti - idx - 1)//self.mem_freq + 1 + num_certain_keys
+            closest_ti = min(
+                [ti for ti in self.interacted if ti > idx] + [self.t])
+            total_m = (closest_ti - idx - 1)//self.mem_freq + \
+                1 + num_certain_keys
         else:
             closest_ti = max([ti for ti in self.interacted if ti < idx] + [-1])
-            total_m = (idx - closest_ti - 1)//self.mem_freq + 1 + num_certain_keys
+            total_m = (idx - closest_ti - 1)//self.mem_freq + \
+                1 + num_certain_keys
         _, CK, _, H, W = key_k.shape
         K, CV, _, _, _ = key_v.shape
 
         # Pre-allocate keys/values memory
-        keys = torch.empty((1, CK, total_m, H, W), dtype=torch.float32, device=self.device)
-        values = torch.empty((K, CV, total_m, H, W), dtype=torch.float32, device=self.device)
+        keys = torch.empty((1, CK, total_m, H, W),
+                           dtype=torch.float32, device=self.device)
+        values = torch.empty((K, CV, total_m, H, W),
+                             dtype=torch.float32, device=self.device)
 
         # Initial key/value passed in
-        keys[:,:,0:num_certain_keys] = self.certain_mem_k
-        values[:,:,0:num_certain_keys] = self.certain_mem_v
+        keys[:, :, 0:num_certain_keys] = self.certain_mem_k
+        values[:, :, 0:num_certain_keys] = self.certain_mem_v
         last_ti = idx
 
         # Note that we never reach closest_ti, just the frame before it
@@ -158,17 +168,18 @@ class InferenceCore:
             end = closest_ti + 1
 
         for ti in this_range:
-            this_k = keys[:,:,:m_front]
-            this_v = values[:,:,:m_front]
+            this_k = keys[:, :, :m_front]
+            this_v = values[:, :, :m_front]
             k16, qv16, qf16, qf8, qf4 = self.get_key_feat_buffered(ti)
-            out_mask = self.prop_net.segment_with_query(this_k, this_v, qf8, qf4, k16, qv16)
+            out_mask = self.prop_net.segment_with_query(
+                this_k, this_v, qf8, qf4, k16, qv16)
 
             out_mask = aggregate_wbg(out_mask, keep_bg=True)
 
             if ti != end and abs(ti-last_ti) >= self.mem_freq:
-                keys[:,:,m_front:m_front+1] = k16.unsqueeze(2)
-                values[:,:,m_front:m_front+1] = self.prop_net.encode_value(
-                        self.get_image_buffered(ti), qf16, out_mask[1:])
+                keys[:, :, m_front:m_front+1] = k16.unsqueeze(2)
+                values[:, :, m_front:m_front+1] = self.prop_net.encode_value(
+                    self.get_image_buffered(ti), qf16, out_mask[1:])
 
                 m_front += 1
                 last_ti = ti
@@ -176,10 +187,10 @@ class InferenceCore:
             # In-place fusion, maximizes the use of queried buffer
             # esp. for long sequence where the buffer will be flushed
             if (closest_ti != self.t) and (closest_ti != -1):
-                self.prob[:,ti] = self.fuse_one_frame(closest_ti, idx, ti, self.prob[:,ti], out_mask, 
-                                        key_k, k16).to(self.result_dev)
+                self.prob[:, ti] = self.fuse_one_frame(closest_ti, idx, ti, self.prob[:, ti], out_mask,
+                                                       key_k, k16).to(self.result_dev)
             else:
-                self.prob[:,ti] = out_mask.to(self.result_dev)
+                self.prob[:, ti] = out_mask.to(self.result_dev)
 
             # Callback function for the GUI
             if step_cb is not None:
@@ -188,19 +199,21 @@ class InferenceCore:
         return closest_ti
 
     def fuse_one_frame(self, tc, tr, ti, prev_mask, curr_mask, mk16, qk16):
-        assert(tc<ti<tr or tr<ti<tc)
+        assert(tc < ti < tr or tr < ti < tc)
 
-        prob = torch.zeros((self.k, 1, self.nh, self.nw), dtype=torch.float32, device=self.device)
+        prob = torch.zeros((self.k, 1, self.nh, self.nw),
+                           dtype=torch.float32, device=self.device)
 
         # Compute linear coefficients
         nc = abs(tc-ti) / abs(tc-tr)
         nr = abs(tr-ti) / abs(tc-tr)
         dist = torch.FloatTensor([nc, nr]).to(self.device).unsqueeze(0)
-        attn_map = self.prop_net.get_attention(mk16, self.pos_mask_diff, self.neg_mask_diff, qk16)
+        attn_map = self.prop_net.get_attention(
+            mk16, self.pos_mask_diff, self.neg_mask_diff, qk16)
         for k in range(1, self.k+1):
-            w = torch.sigmoid(self.fuse_net(self.get_image_buffered(ti), 
-                    prev_mask[k:k+1].to(self.device), curr_mask[k:k+1].to(self.device), attn_map[k:k+1], dist))
-            prob[k-1] = w 
+            w = torch.sigmoid(self.fuse_net(self.get_image_buffered(ti),
+                                            prev_mask[k:k+1].to(self.device), curr_mask[k:k+1].to(self.device), attn_map[k:k+1], dist))
+            prob[k-1] = w
         return aggregate_wbg(prob, keep_bg=True)
 
     def interact(self, mask, idx, total_cb=None, step_cb=None):
@@ -224,7 +237,8 @@ class InferenceCore:
         self.prob[:, idx] = mask
         key_k, _, qf16, _, _ = self.get_key_feat_buffered(idx)
         key_k = key_k.unsqueeze(2)
-        key_v = self.prop_net.encode_value(self.get_image_buffered(idx), qf16, mask[1:])
+        key_v = self.prop_net.encode_value(
+            self.get_image_buffered(idx), qf16, mask[1:])
 
         if self.certain_mem_k is None:
             self.certain_mem_k = key_k
@@ -235,27 +249,29 @@ class InferenceCore:
 
         if total_cb is not None:
             # Finds the total num. frames to process
-            front_limit = min([ti for ti in self.interacted if ti > idx] + [self.t])
+            front_limit = min(
+                [ti for ti in self.interacted if ti > idx] + [self.t])
             back_limit = max([ti for ti in self.interacted if ti < idx] + [-1])
-            total_num = front_limit - back_limit - 2 # -1 for shift, -1 for center frame
+            total_num = front_limit - back_limit - 2  # -1 for shift, -1 for center frame
             if total_num > 0:
                 total_cb(total_num)
 
         self.do_pass(key_k, key_v, idx, True, step_cb=step_cb)
         self.do_pass(key_k, key_v, idx, False, step_cb=step_cb)
-        
+
         # This is a more memory-efficient argmax
         for ti in range(self.t):
-            self.masks[ti] = torch.argmax(self.prob[:,ti], dim=0)
+            self.masks[ti] = torch.argmax(self.prob[:, ti], dim=0)
         out_masks = self.masks
 
         # Trim paddings
         if self.pad[2]+self.pad[3] > 0:
-            out_masks = out_masks[:,:,self.pad[2]:-self.pad[3],:]
+            out_masks = out_masks[:, :, self.pad[2]:-self.pad[3], :]
         if self.pad[0]+self.pad[1] > 0:
-            out_masks = out_masks[:,:,:,self.pad[0]:-self.pad[1]]
+            out_masks = out_masks[:, :, :, self.pad[0]:-self.pad[1]]
 
-        self.np_masks = (out_masks.detach().cpu().numpy()[:,0]).astype(np.uint8)
+        self.np_masks = (out_masks.detach().cpu().numpy()
+                         [:, 0]).astype(np.uint8)
 
         return self.np_masks
 
@@ -272,9 +288,9 @@ class InferenceCore:
 
         # Mask - 1 * H * W
         if self.pad[2]+self.pad[3] > 0:
-            mask = mask[:,self.pad[2]:-self.pad[3],:]
+            mask = mask[:, self.pad[2]:-self.pad[3], :]
         if self.pad[0]+self.pad[1] > 0:
-            mask = mask[:,:,self.pad[0]:-self.pad[1]]
+            mask = mask[:, :, self.pad[0]:-self.pad[1]]
 
         mask = (mask.detach().cpu().numpy()[0]).astype(np.uint8)
         self.np_masks[idx] = mask

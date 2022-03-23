@@ -35,13 +35,15 @@ save_mask = args.save_mask
 
 # Simple setup
 os.makedirs(out_path, exist_ok=True)
-palette = Image.open(path.expanduser(davis_path + '/trainval/Annotations/480p/blackswan/00000.png')).getpalette()
+palette = Image.open(path.expanduser(
+    davis_path + '/trainval/Annotations/480p/blackswan/00000.png')).getpalette()
 
 torch.autograd.set_grad_enabled(False)
 
 # Setup Dataset
 test_dataset = DAVISTestDataset(davis_path+'/trainval', imset='2017/val.txt')
-test_loader = DataLoader(test_dataset, batch_size=1, shuffle=False, num_workers=2)
+test_loader = DataLoader(test_dataset, batch_size=1,
+                         shuffle=False, num_workers=2)
 
 images = {}
 num_objects = {}
@@ -79,8 +81,9 @@ with DavisInteractiveSession(davis_root=davis_path+'/trainval', report_save_dir=
             if 'processor' in locals():
                 # Note that ALL pre-computed features are flushed in this step
                 # We are not using pre-computed features for the same sequence with different user-id
-                del processor # Should release some juicy mem
-            processor = DAVISProcessor(prop_model, fusion_model, s2m_model, images[sequence], num_objects[sequence])
+                del processor  # Should release some juicy mem
+            processor = DAVISProcessor(
+                prop_model, fusion_model, s2m_model, images[sequence], num_objects[sequence])
             print(sequence)
 
             # Save last time
@@ -91,7 +94,8 @@ with DavisInteractiveSession(davis_root=davis_path+'/trainval', report_save_dir=
                     for i in range(len(pred_masks)):
                         img_E = Image.fromarray(pred_masks[i])
                         img_E.putpalette(palette)
-                        img_E.save(os.path.join(seq_path, '{:05d}.png'.format(i)))
+                        img_E.save(os.path.join(
+                            seq_path, '{:05d}.png'.format(i)))
 
                 if (last_seq is None) or (sequence != last_seq):
                     last_seq = sequence
@@ -105,4 +109,5 @@ with DavisInteractiveSession(davis_root=davis_path+'/trainval', report_save_dir=
         total_iter += 1
 
     report = sess.get_report()
-    summary = sess.get_global_summary(save_file=path.join(out_path, 'summary.json'))
+    summary = sess.get_global_summary(
+        save_file=path.join(out_path, 'summary.json'))

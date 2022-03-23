@@ -12,7 +12,7 @@ from torch.utils import model_zoo
 
 
 def load_weights_sequential(target, source_state, extra_chan=1):
-    
+
     new_dict = OrderedDict()
 
     for k1, v1 in target.state_dict().items():
@@ -24,7 +24,8 @@ def load_weights_sequential(target, source_state, extra_chan=1):
                     # Init the new segmentation channel with zeros
                     # print(v1.shape, tar_v.shape)
                     c, _, w, h = v1.shape
-                    pads = torch.zeros((c,extra_chan,w,h), device=tar_v.device)
+                    pads = torch.zeros((c, extra_chan, w, h),
+                                       device=tar_v.device)
                     nn.init.orthogonal_(pads)
                     tar_v = torch.cat([tar_v, pads], 1)
 
@@ -51,7 +52,8 @@ class BasicBlock(nn.Module):
 
     def __init__(self, inplanes, planes, stride=1, downsample=None, dilation=1):
         super(BasicBlock, self).__init__()
-        self.conv1 = conv3x3(inplanes, planes, stride=stride, dilation=dilation)
+        self.conv1 = conv3x3(
+            inplanes, planes, stride=stride, dilation=dilation)
         self.bn1 = nn.BatchNorm2d(planes)
         self.relu = nn.ReLU(inplace=True)
         self.conv2 = conv3x3(planes, planes, stride=1, dilation=dilation)
@@ -121,7 +123,8 @@ class ResNet(nn.Module):
     def __init__(self, block, layers=(3, 4, 23, 3), extra_chan=1):
         self.inplanes = 64
         super(ResNet, self).__init__()
-        self.conv1 = nn.Conv2d(3+extra_chan, 64, kernel_size=7, stride=2, padding=3)
+        self.conv1 = nn.Conv2d(
+            3+extra_chan, 64, kernel_size=7, stride=2, padding=3)
         self.bn1 = nn.BatchNorm2d(64)
         self.relu = nn.ReLU(inplace=True)
         self.maxpool = nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
@@ -155,15 +158,18 @@ class ResNet(nn.Module):
 
         return nn.Sequential(*layers)
 
+
 def resnet18(pretrained=True, extra_chan=0):
     model = ResNet(BasicBlock, [2, 2, 2, 2], extra_chan)
     if pretrained:
-        load_weights_sequential(model, model_zoo.load_url(model_urls['resnet18']), extra_chan)
+        load_weights_sequential(model, model_zoo.load_url(
+            model_urls['resnet18']), extra_chan)
     return model
+
 
 def resnet50(pretrained=True, extra_chan=0):
     model = ResNet(Bottleneck, [3, 4, 6, 3], extra_chan)
     if pretrained:
-        load_weights_sequential(model, model_zoo.load_url(model_urls['resnet50']), extra_chan)
+        load_weights_sequential(model, model_zoo.load_url(
+            model_urls['resnet50']), extra_chan)
     return model
-

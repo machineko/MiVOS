@@ -20,11 +20,11 @@ class FusionModel:
         self.local_rank = local_rank
 
         if distributed:
-            self.net = nn.parallel.DistributedDataParallel(FusionNet().cuda(), 
-                device_ids=[local_rank], output_device=local_rank, broadcast_buffers=False)
+            self.net = nn.parallel.DistributedDataParallel(FusionNet().cuda(),
+                                                           device_ids=[local_rank], output_device=local_rank, broadcast_buffers=False)
         else:
             self.net = nn.DataParallel(
-                FusionNet().cuda(), 
+                FusionNet().cuda(),
                 device_ids=[local_rank], output_device=local_rank)
 
         self.prop_net = AttentionReadNetwork().eval().cuda()
@@ -34,15 +34,18 @@ class FusionModel:
         self.save_path = save_path
         if logger is not None:
             self.last_time = time.time()
-        self.train_integrator = Integrator(self.logger, distributed=distributed, local_rank=local_rank, world_size=world_size)
+        self.train_integrator = Integrator(
+            self.logger, distributed=distributed, local_rank=local_rank, world_size=world_size)
         self.train_integrator.add_hook(iou_hooks)
-        self.val_integrator = Integrator(self.logger, distributed=distributed, local_rank=local_rank, world_size=world_size)
+        self.val_integrator = Integrator(
+            self.logger, distributed=distributed, local_rank=local_rank, world_size=world_size)
         self.loss_computer = LossComputer(para)
 
         self.train()
         self.optimizer = optim.Adam(filter(
             lambda p: p.requires_grad, self.net.parameters()), lr=para['lr'], weight_decay=1e-7)
-        self.scheduler = optim.lr_scheduler.MultiStepLR(self.optimizer, para['steps'], para['gamma'])
+        self.scheduler = optim.lr_scheduler.MultiStepLR(
+            self.optimizer, para['steps'], para['gamma'])
         if para['amp']:
             self.scaler = torch.cuda.amp.GradScaler()
 
@@ -84,11 +87,13 @@ class FusionModel:
 
             # Get kernelized memory
             with torch.no_grad():
-                attn1, attn2 = self.prop_net(src2_ref_im, src2_ref, src2_ref_gt, src2_ref2, src2_ref_gt2, im)
+                attn1, attn2 = self.prop_net(
+                    src2_ref_im, src2_ref, src2_ref_gt, src2_ref2, src2_ref_gt2, im)
 
             prob1 = torch.sigmoid(self.net(im, seg1, seg2, attn1, dist))
             prob2 = torch.sigmoid(self.net(im, seg12, seg22, attn2, dist))
-            prob = torch.cat([prob1, prob2], 1) * selector.unsqueeze(2).unsqueeze(2)
+            prob = torch.cat([prob1, prob2], 1) * \
+                selector.unsqueeze(2).unsqueeze(2)
             logits, prob = aggregate_wbg_channel(prob, True)
 
             out['logits'] = logits
@@ -107,20 +112,24 @@ class FusionModel:
                             if self.logger is not None:
                                 images = {**data, **out}
                                 size = (320, 320)
-                                self.logger.log_cv2('train/pairs', pool_fusion(images, size=size), it)
+                                self.logger.log_cv2(
+                                    'train/pairs', pool_fusion(images, size=size), it)
                     else:
                         # Validation save
                         if data['val_iter'] % 10 == 0:
                             if self.logger is not None:
                                 images = {**data, **out}
                                 size = (320, 320)
-                                self.logger.log_cv2('val/pairs', pool_fusion(images, size=size), it)
+                                self.logger.log_cv2(
+                                    'val/pairs', pool_fusion(images, size=size), it)
 
             if self._is_train:
                 if (it) % self.report_interval == 0 and it != 0:
                     if self.logger is not None:
-                        self.logger.log_scalar('train/lr', self.scheduler.get_last_lr()[0], it)
-                        self.logger.log_metrics('train', 'time', (time.time()-self.last_time)/self.report_interval, it)
+                        self.logger.log_scalar(
+                            'train/lr', self.scheduler.get_last_lr()[0], it)
+                        self.logger.log_metrics(
+                            'train', 'time', (time.time()-self.last_time)/self.report_interval, it)
                     self.last_time = time.time()
                     self.train_integrator.finalize('train', it)
                     self.train_integrator.reset_except_hooks()
@@ -136,7 +145,7 @@ class FusionModel:
                 self.scaler.step(self.optimizer)
                 self.scaler.update()
             else:
-                losses['total_loss'].backward() 
+                losses['total_loss'].backward()
                 self.optimizer.step()
             self.scheduler.step()
 
@@ -144,7 +153,7 @@ class FusionModel:
         if self.save_path is None:
             print('Saving has been disabled.')
             return
-        
+
         os.makedirs(os.path.dirname(self.save_path), exist_ok=True)
         model_path = self.save_path + ('_%s.pth' % it)
         torch.save(self.net.module.state_dict(), model_path)
@@ -159,7 +168,7 @@ class FusionModel:
 
         os.makedirs(os.path.dirname(self.save_path), exist_ok=True)
         checkpoint_path = self.save_path + '_checkpoint.pth'
-        checkpoint = { 
+        checkpoint = {
             'it': it,
             'network': self.net.module.state_dict(),
             'optimizer': self.optimizer.state_dict(),
@@ -188,13 +197,15 @@ class FusionModel:
 
     def load_network(self, path):
         map_location = 'cuda:%d' % self.local_rank
-        self.net.module.load_state_dict(torch.load(path, map_location={'cuda:0': map_location}))
+        self.net.module.load_state_dict(torch.load(
+            path, map_location={'cuda:0': map_location}))
         # self.net.load_state_dict(torch.load(path))
         print('Network weight loaded:', path)
 
     def load_prop(self, path):
         map_location = 'cuda:%d' % self.local_rank
-        self.prop_net.load_state_dict(torch.load(path, map_location={'cuda:0': map_location}), strict=False)
+        self.prop_net.load_state_dict(torch.load(
+            path, map_location={'cuda:0': map_location}), strict=False)
         print('Propagation network weight loaded:', path)
 
     def finalize_val(self, it):
@@ -224,4 +235,3 @@ class FusionModel:
         self.net.eval()
         self.prop_net.eval()
         return self
-
