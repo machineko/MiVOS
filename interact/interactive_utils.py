@@ -31,8 +31,8 @@ def load_images(path, min_side=None):
         if min_side:
             image = Image.open(fname).convert('RGB')
             w, h = image.size
-            new_w = (w*min_side//min(w, h))
-            new_h = (h*min_side//min(w, h))
+            new_w = 864
+            new_h = 480
             frame_list.append(np.array(image.resize((new_w, new_h), Image.BICUBIC), dtype=np.uint8))
         else:
             frame_list.append(np.array(Image.open(fname).convert('RGB'), dtype=np.uint8))
@@ -71,8 +71,8 @@ def load_video(path, min_side=None):
         frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
         if min_side:
             h, w = frame.shape[:2]
-            new_w = (w*min_side//min(w, h))
-            new_h = (h*min_side//min(w, h))
+            new_w = 864
+            new_h = 480
             frame = cv2.resize(frame, (new_w, new_h), interpolation=cv2.INTER_CUBIC)
         frame_list.append(frame)
     frames = np.stack(frame_list, axis=0)
