@@ -11,6 +11,8 @@ from model.propagation.modules import *
 import coremltools as ct
 from PIL import Image
 from torchvision import transforms
+
+
 class Decoder(nn.Module):
     def __init__(self):
         super().__init__()
@@ -18,7 +20,8 @@ class Decoder(nn.Module):
         self.up_16_8 = UpsampleBlock(512, 512, 256)  # 1/16 -> 1/8
         self.up_8_4 = UpsampleBlock(256, 256, 256)  # 1/8 -> 1/4
 
-        self.pred = nn.Conv2d(256, 1, kernel_size=(3, 3), padding=(1, 1), stride=1)
+        self.pred = nn.Conv2d(256, 1, kernel_size=(3, 3),
+                              padding=(1, 1), stride=1)
 
     def forward(self, f16, f8, f4):
         x = self.compress(f16)
@@ -27,7 +30,8 @@ class Decoder(nn.Module):
 
         x = self.pred(F.relu(x))
 
-        x = F.interpolate(x, scale_factor=4, mode="bilinear", align_corners=False)
+        x = F.interpolate(x, scale_factor=4, mode="bilinear",
+                          align_corners=False)
         return x
 
 
@@ -99,7 +103,8 @@ class EvalMemoryReader(nn.Module):
             g = make_gaussian(y_idx, x_idx, H, W, sigma=self.km)
             g = g.view(B, T * H * W, H * W)
 
-            affinity = softmax_w_g_top(affinity, top=self.top_k, gauss=g)  # B, THW, HW
+            affinity = softmax_w_g_top(
+                affinity, top=self.top_k, gauss=g)  # B, THW, HW
         else:
             if self.top_k is not None:
                 affinity = softmax_w_g_top(
@@ -163,7 +168,8 @@ class PropagationNetwork(nn.Module):
 
     def encode_value(self, frame, kf16, masks):
         if self.load_valueenc:
-            self.value_encoder_ml = ct.models.MLModel("mlmodels/ValueEnc.mlmodel")
+            self.value_encoder_ml = ct.models.MLModel(
+                "mlmodels/ValueEnc.mlmodel")
             self.load_valueenc = False
         k, _, h, w = masks.shape
 
@@ -200,7 +206,8 @@ class PropagationNetwork(nn.Module):
         if self.load_key_encoder:
             self.key_enc_ml = ct.models.MLModel("mlmodels/KeyEnc.mlmodel")
             self.load_key_encoder = False
-            self.key_proj_ml = ct.models.MLModel("mlmodels/KeyProj.mlmodel") # TODO NEED FIX
+            self.key_proj_ml = ct.models.MLModel(
+                "mlmodels/KeyProj.mlmodel")  # TODO NEED FIX
             self.key_comp_ml = ct.models.MLModel("mlmodels/KeyComp.mlmodel")
         # f16, f8, f4 = self.key_encoder(frame)
         out = self.key_enc_ml.predict(
@@ -208,9 +215,12 @@ class PropagationNetwork(nn.Module):
                 "f": transforms.ToPILImage()(frame[0, ...])
             }
         )
-        f16, f8, f4 = out["KeyOut"], torch.from_numpy(out["input_137"]), torch.from_numpy(out["input_63"])
-        f16_thin = torch.from_numpy(self.key_comp_ml.predict(data={"input": f16})["KeyCompOut"])
-        k16 = torch.from_numpy(self.key_proj_ml.predict(data={"x": f16})["KeyProjOut"]) # TODO NEED FIX
+        f16, f8, f4 = out["KeyOut"], torch.from_numpy(
+            out["input_137"]), torch.from_numpy(out["input_63"])
+        f16_thin = torch.from_numpy(self.key_comp_ml.predict(
+            data={"input": f16})["KeyCompOut"])
+        k16 = torch.from_numpy(self.key_proj_ml.predict(
+            data={"x": f16})["KeyProjOut"])  # TODO NEED FIX
 
         return k16, f16_thin, torch.from_numpy(f16), f8, f4
 
@@ -225,7 +235,7 @@ class PropagationNetwork(nn.Module):
         batched = 1
         m4 = torch.cat(
             [
-                self.memory.readout(affinity, mv16[i : i + 1])
+                self.memory.readout(affinity, mv16[i: i + 1])
                 for i in range(0, k, batched)
             ],
             0,
@@ -233,9 +243,9 @@ class PropagationNetwork(nn.Module):
 
         qv16 = qv16.expand(k, -1, -1, -1)
         m4 = torch.cat([m4, qv16], 1)
-        dec_out = self.decoder_ml.predict(data = {
+        dec_out = self.decoder_ml.predict(data={
             "f16": m4.numpy(), "f8": qf8.numpy(), "f4": qf4.numpy()
-            })["DecoderOut"]
+        })["DecoderOut"]
         #m4, qf8, qf4
         return torch.sigmoid(torch.from_numpy(dec_out))
 
@@ -251,10 +261,12 @@ class PropagationNetwork(nn.Module):
         W = self.get_W(mk16, qk16)
 
         pos_map = (
-            F.interpolate(pos_mask, size=(nh, nw), mode="area").view(b, 1, nh * nw) @ W
+            F.interpolate(pos_mask, size=(nh, nw),
+                          mode="area").view(b, 1, nh * nw) @ W
         )
         neg_map = (
-            F.interpolate(neg_mask, size=(nh, nw), mode="area").view(b, 1, nh * nw) @ W
+            F.interpolate(neg_mask, size=(nh, nw),
+                          mode="area").view(b, 1, nh * nw) @ W
         )
         attn_map = torch.cat([pos_map, neg_map], 1)
         attn_map = attn_map.reshape(b, 2, nh, nw)
