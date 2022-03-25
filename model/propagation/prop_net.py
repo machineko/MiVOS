@@ -210,7 +210,7 @@ class PropagationNetwork(nn.Module):
         )
         f16, f8, f4 = out["KeyOut"], torch.from_numpy(out["input_137"]), torch.from_numpy(out["input_63"])
         f16_thin = torch.from_numpy(self.key_comp_ml.predict(data={"input": f16})["KeyCompOut"])
-        k16 = self.key_proj(torch.from_numpy(f16)) # TODO NEED FIX
+        k16 = torch.from_numpy(self.key_proj_ml.predict(data={"x": f16})["KeyProjOut"]) # TODO NEED FIX
 
         return k16, f16_thin, torch.from_numpy(f16), f8, f4
 
