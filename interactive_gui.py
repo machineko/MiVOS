@@ -4,7 +4,6 @@ Based on https://github.com/seoungwugoh/ivs-demo
 The entry point for the user interface
 It is terribly long... GUI code is hard to write!
 """
-
 import functools
 import os
 import sys
@@ -17,13 +16,28 @@ import numpy as np
 import torch
 from PIL import Image
 from PyQt5 import QtCore
-from PyQt5.QtCore import Qt, QTimer
-from PyQt5.QtGui import QImage, QKeySequence, QPixmap, QTextCursor
-from PyQt5.QtWidgets import (QApplication, QButtonGroup, QComboBox,
-                             QFileDialog, QHBoxLayout, QLabel, QPlainTextEdit,
-                             QProgressBar, QPushButton, QRadioButton,
-                             QShortcut, QSizePolicy, QSlider, QTextEdit,
-                             QVBoxLayout, QWidget)
+from PyQt5.QtCore import Qt
+from PyQt5.QtCore import QTimer
+from PyQt5.QtGui import QImage
+from PyQt5.QtGui import QKeySequence
+from PyQt5.QtGui import QPixmap
+from PyQt5.QtGui import QTextCursor
+from PyQt5.QtWidgets import QApplication
+from PyQt5.QtWidgets import QButtonGroup
+from PyQt5.QtWidgets import QComboBox
+from PyQt5.QtWidgets import QFileDialog
+from PyQt5.QtWidgets import QHBoxLayout
+from PyQt5.QtWidgets import QLabel
+from PyQt5.QtWidgets import QPlainTextEdit
+from PyQt5.QtWidgets import QProgressBar
+from PyQt5.QtWidgets import QPushButton
+from PyQt5.QtWidgets import QRadioButton
+from PyQt5.QtWidgets import QShortcut
+from PyQt5.QtWidgets import QSizePolicy
+from PyQt5.QtWidgets import QSlider
+from PyQt5.QtWidgets import QTextEdit
+from PyQt5.QtWidgets import QVBoxLayout
+from PyQt5.QtWidgets import QWidget
 
 from inference_core import InferenceCore
 from interact.fbrs_controller import FBRSController
