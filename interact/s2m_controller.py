@@ -44,12 +44,10 @@ class S2MController:
             )
             Rs, _ = pad_divide_by(Rs, 16, Rs.shape[-2:])
 
-            inputs = torch.cat(
-                [image, (prev_mask == ki).float().unsqueeze(0), Rs], 1)
+            inputs = torch.cat([image, (prev_mask == ki).float().unsqueeze(0), Rs], 1)
             # unaggre_mask[ki-1] = torch.sigmoid(self.s2m_net(inputs))
             unaggre_mask[ki - 1] = torch.sigmoid(
-                torch.from_numpy(self.s2m_ml.predict(
-                    data={"x": inputs.numpy()})["s2m"])
+                torch.from_numpy(self.s2m_ml.predict(data={"x": inputs.numpy()})["s2m"])
             )
 
         return unaggre_mask
