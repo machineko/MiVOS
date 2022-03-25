@@ -978,7 +978,7 @@ if __name__ == '__main__':
     parser.add_argument('--s2m_model', default='saves/s2m.pth')
     parser.add_argument('--fbrs_model', default='saves/fbrs.pth')
     parser.add_argument('--images', help='Folders containing input images. Either this or --video need to be specified.')
-    parser.add_argument('--video', help='Video file readable by OpenCV. Either this or --images need to be specified.', default='example/example.mp4')
+    parser.add_argument('--video', help='Video file readable by OpenCV. Either this or --images need to be specified.', default='Guitar_50_frames.mov')
     parser.add_argument('--num_objects', help='Default: 1 if no masks provided, masks.max() otherwise', type=int, default=3)
     parser.add_argument('--mem_freq', default=5, type=int)
     parser.add_argument('--mem_profile', default=0, type=int, help='0 - Faster and more memory intensive; 2 - Slower and less memory intensive. Default: 0.')
