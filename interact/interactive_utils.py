@@ -18,7 +18,8 @@ from dataset.range_transform import im_normalization
 
 
 def images_to_torch(frames, device):
-    frames = torch.from_numpy(frames.transpose(0, 3, 1, 2)).float().unsqueeze(0) / 255
+    frames = torch.from_numpy(frames.transpose(0, 3, 1,
+                                               2)).float().unsqueeze(0) / 255
     b, t, c, h, w = frames.shape
     for ti in range(t):
         frames[0, ti] = im_normalization(frames[0, ti])
@@ -37,12 +38,11 @@ def load_images(path, min_side=None):
             new_w = 864
             new_h = 480
             frame_list.append(
-                np.array(image.resize((new_w, new_h), Image.BICUBIC), dtype=np.uint8)
-            )
+                np.array(image.resize((new_w, new_h), Image.BICUBIC),
+                         dtype=np.uint8))
         else:
             frame_list.append(
-                np.array(Image.open(fname).convert("RGB"), dtype=np.uint8)
-            )
+                np.array(Image.open(fname).convert("RGB"), dtype=np.uint8))
     frames = np.stack(frame_list, axis=0)
     return frames
 
@@ -61,8 +61,8 @@ def load_masks(path, min_side=None):
             new_w = w * min_side // min(w, h)
             new_h = h * min_side // min(w, h)
             frame_list.append(
-                np.array(image.resize((new_w, new_h), Image.NEAREST), dtype=np.uint8)
-            )
+                np.array(image.resize((new_w, new_h), Image.NEAREST),
+                         dtype=np.uint8))
         else:
             frame_list.append(np.array(Image.open(fname), dtype=np.uint8))
 
@@ -84,7 +84,8 @@ def load_video(path, min_side=None):
             h, w = frame.shape[:2]
             new_w = 864
             new_h = 480
-            frame = cv2.resize(frame, (new_w, new_h), interpolation=cv2.INTER_CUBIC)
+            frame = cv2.resize(frame, (new_w, new_h),
+                               interpolation=cv2.INTER_CUBIC)
         frame_list.append(frame)
     frames = np.stack(frame_list, axis=0)
     return frames

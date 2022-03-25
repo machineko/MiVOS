@@ -14,13 +14,18 @@ from model.propagation.modules import *
 
 
 class Decoder(nn.Module):
+
     def __init__(self):
         super().__init__()
         self.compress = ResBlock(1024, 512)
         self.up_16_8 = UpsampleBlock(512, 512, 256)  # 1/16 -> 1/8
         self.up_8_4 = UpsampleBlock(256, 256, 256)  # 1/8 -> 1/4
 
-        self.pred = nn.Conv2d(256, 1, kernel_size=(3, 3), padding=(1, 1), stride=1)
+        self.pred = nn.Conv2d(256,
+                              1,
+                              kernel_size=(3, 3),
+                              padding=(1, 1),
+                              stride=1)
 
     def forward(self, f16, f8, f4):
         x = self.compress(f16)
@@ -29,7 +34,10 @@ class Decoder(nn.Module):
 
         x = self.pred(F.relu(x))
 
-        x = F.interpolate(x, scale_factor=4, mode="bilinear", align_corners=False)
+        x = F.interpolate(x,
+                          scale_factor=4,
+                          mode="bilinear",
+                          align_corners=False)
         return x
 
 
@@ -42,7 +50,7 @@ def make_gaussian(y_idx, x_idx, height, width, sigma=7):
     y_idx = y_idx.transpose(0, 1)
     x_idx = x_idx.transpose(0, 1)
 
-    g = torch.exp(-((yv - y_idx) ** 2 + (xv - x_idx) ** 2) / (2 * sigma**2))
+    g = torch.exp(-((yv - y_idx)**2 + (xv - x_idx)**2) / (2 * sigma**2))
 
     return g
 
@@ -77,6 +85,7 @@ def softmax_w_g_top(x, top=None, gauss=None):
 
 
 class EvalMemoryReader(nn.Module):
+
     def __init__(self, top_k, km):
         super().__init__()
         self.top_k = top_k
@@ -101,12 +110,13 @@ class EvalMemoryReader(nn.Module):
             g = make_gaussian(y_idx, x_idx, H, W, sigma=self.km)
             g = g.view(B, T * H * W, H * W)
 
-            affinity = softmax_w_g_top(affinity, top=self.top_k, gauss=g)  # B, THW, HW
+            affinity = softmax_w_g_top(affinity, top=self.top_k,
+                                       gauss=g)  # B, THW, HW
         else:
             if self.top_k is not None:
-                affinity = softmax_w_g_top(
-                    affinity, top=self.top_k, gauss=None
-                )  # B, THW, HW
+                affinity = softmax_w_g_top(affinity,
+                                           top=self.top_k,
+                                           gauss=None)  # B, THW, HW
             else:
                 affinity = F.softmax(affinity, dim=1)
 
@@ -123,6 +133,7 @@ class EvalMemoryReader(nn.Module):
 
 
 class AttentionMemory(nn.Module):
+
     def __init__(self, k):
         super().__init__()
         self.k = k
@@ -147,6 +158,7 @@ class AttentionMemory(nn.Module):
 
 
 class PropagationNetwork(nn.Module):
+
     def __init__(self, top_k=20):
         super().__init__()
         self.value_encoder = ValueEncoder()
@@ -165,7 +177,8 @@ class PropagationNetwork(nn.Module):
 
     def encode_value(self, frame, kf16, masks):
         if self.load_valueenc:
-            self.value_encoder_ml = ct.models.MLModel("mlmodels/ValueEnc.mlmodel")
+            self.value_encoder_ml = ct.models.MLModel(
+                "mlmodels/ValueEnc.mlmodel")
             self.load_valueenc = False
         k, _, h, w = masks.shape
 
@@ -176,25 +189,21 @@ class PropagationNetwork(nn.Module):
         if k != 1:
             others = torch.cat(
                 [
-                    torch.sum(
-                        masks[[j for j in range(k) if i != j]], dim=0, keepdim=True
-                    )
-                    for i in range(k)
+                    torch.sum(masks[[j for j in range(k) if i != j]],
+                              dim=0,
+                              keepdim=True) for i in range(k)
                 ],
                 0,
             )
         else:
             others = torch.zeros_like(masks)
         f16 = torch.from_numpy(
-            self.value_encoder_ml.predict(
-                {
-                    "image": frame.numpy(),
-                    "key_f16": kf16.numpy(),
-                    "mask": masks.numpy(),
-                    "other_masks": others.numpy(),
-                }
-            )["ValueOut"]
-        )
+            self.value_encoder_ml.predict({
+                "image": frame.numpy(),
+                "key_f16": kf16.numpy(),
+                "mask": masks.numpy(),
+                "other_masks": others.numpy(),
+            })["ValueOut"])
         # f16 = self.value_encoder(frame, kf16, masks, others)
         return f16.unsqueeze(2)  # B*512*T*H*W
 
@@ -203,24 +212,21 @@ class PropagationNetwork(nn.Module):
             self.key_enc_ml = ct.models.MLModel("mlmodels/KeyEnc.mlmodel")
             self.load_key_encoder = False
             self.key_proj_ml = ct.models.MLModel(
-                "mlmodels/KeyProj.mlmodel"
-            )  # TODO NEED FIX
+                "mlmodels/KeyProj.mlmodel")  # TODO NEED FIX
             self.key_comp_ml = ct.models.MLModel("mlmodels/KeyComp.mlmodel")
         # f16, f8, f4 = self.key_encoder(frame)
         out = self.key_enc_ml.predict(
-            data={"f": transforms.ToPILImage()(frame[0, ...])}
-        )
+            data={"f": transforms.ToPILImage()(frame[0, ...])})
         f16, f8, f4 = (
             out["KeyOut"],
             torch.from_numpy(out["input_137"]),
             torch.from_numpy(out["input_63"]),
         )
         f16_thin = torch.from_numpy(
-            self.key_comp_ml.predict(data={"input": f16})["KeyCompOut"]
-        )
+            self.key_comp_ml.predict(data={"input": f16})["KeyCompOut"])
         k16 = torch.from_numpy(
-            self.key_proj_ml.predict(data={"x": f16})["KeyProjOut"]
-        )  # TODO NEED FIX
+            self.key_proj_ml.predict(
+                data={"x": f16})["KeyProjOut"])  # TODO NEED FIX
 
         return k16, f16_thin, torch.from_numpy(f16), f8, f4
 
@@ -235,7 +241,7 @@ class PropagationNetwork(nn.Module):
         batched = 1
         m4 = torch.cat(
             [
-                self.memory.readout(affinity, mv16[i : i + 1])
+                self.memory.readout(affinity, mv16[i:i + 1])
                 for i in range(0, k, batched)
             ],
             0,
@@ -243,9 +249,11 @@ class PropagationNetwork(nn.Module):
 
         qv16 = qv16.expand(k, -1, -1, -1)
         m4 = torch.cat([m4, qv16], 1)
-        dec_out = self.decoder_ml.predict(
-            data={"f16": m4.numpy(), "f8": qf8.numpy(), "f4": qf4.numpy()}
-        )["DecoderOut"]
+        dec_out = self.decoder_ml.predict(data={
+            "f16": m4.numpy(),
+            "f8": qf8.numpy(),
+            "f4": qf4.numpy()
+        })["DecoderOut"]
         # m4, qf8, qf4
         return torch.sigmoid(torch.from_numpy(dec_out))
 
@@ -260,16 +268,15 @@ class PropagationNetwork(nn.Module):
 
         W = self.get_W(mk16, qk16)
 
-        pos_map = (
-            F.interpolate(pos_mask, size=(nh, nw), mode="area").view(b, 1, nh * nw) @ W
-        )
-        neg_map = (
-            F.interpolate(neg_mask, size=(nh, nw), mode="area").view(b, 1, nh * nw) @ W
-        )
+        pos_map = (F.interpolate(pos_mask, size=(nh, nw), mode="area").view(
+            b, 1, nh * nw) @ W)
+        neg_map = (F.interpolate(neg_mask, size=(nh, nw), mode="area").view(
+            b, 1, nh * nw) @ W)
         attn_map = torch.cat([pos_map, neg_map], 1)
         attn_map = attn_map.reshape(b, 2, nh, nw)
-        attn_map = F.interpolate(
-            attn_map, mode="bilinear", size=(h, w), align_corners=False
-        )
+        attn_map = F.interpolate(attn_map,
+                                 mode="bilinear",
+                                 size=(h, w),
+                                 align_corners=False)
 
         return attn_map
