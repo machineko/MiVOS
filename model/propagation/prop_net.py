@@ -3,14 +3,14 @@ Modifed from the original STM code https://github.com/seoungwugoh/STM
 """
 import math
 
+import coremltools as ct
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-
-from model.propagation.modules import *
-import coremltools as ct
 from PIL import Image
 from torchvision import transforms
+
+from model.propagation.modules import *
 
 
 class Decoder(nn.Module):

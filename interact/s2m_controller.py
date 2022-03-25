@@ -1,9 +1,9 @@
-import torch
-import numpy as np
-from model.s2m.s2m_network import deeplabv3plus_resnet50 as S2M
-
-from util.tensor_util import pad_divide_by
 import coremltools as ct
+import numpy as np
+import torch
+
+from model.s2m.s2m_network import deeplabv3plus_resnet50 as S2M
+from util.tensor_util import pad_divide_by
 
 
 class S2MController:
