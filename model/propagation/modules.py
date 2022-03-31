@@ -157,7 +157,7 @@ class UpsampleBlock(nn.Module):
 
     def forward(self, skip_f, up_f):
         x = self.skip_conv(skip_f)
-        x = x + F.interpolate(up_f, scale_factor=self.scale_factor, mode='bilinear', align_corners=False)
+        x = x + F.interpolate(up_f, scale_factor=self.scale_factor, mode='nearest')
         x = self.out_conv(x)
         return x
 

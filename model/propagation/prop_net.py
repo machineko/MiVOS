@@ -11,6 +11,21 @@ from model.propagation.modules import *
 import coremltools as ct
 from PIL import Image
 from torchvision import transforms
+from timeit import default_timer as timer
+
+
+def time_func(func):
+    def wrapper(*args, **kwargs):
+        start = timer()
+
+        result = func(*args, **kwargs)
+
+        print(f"{func.__name__} time => {timer() - start}")
+        return result
+
+    return wrapper
+
+
 class Decoder(nn.Module):
     def __init__(self):
         super().__init__()
@@ -27,7 +42,7 @@ class Decoder(nn.Module):
 
         x = self.pred(F.relu(x))
 
-        x = F.interpolate(x, scale_factor=4, mode="bilinear", align_corners=False)
+        x = F.interpolate(x, scale_factor=4, mode="nearest")  # TODO
         return x
 
 
@@ -80,6 +95,7 @@ class EvalMemoryReader(nn.Module):
         self.top_k = top_k
         self.km = km
 
+    @time_func
     def get_affinity(self, mk, qk):
         B, CK, T, H, W = mk.shape
 
@@ -110,6 +126,7 @@ class EvalMemoryReader(nn.Module):
 
         return affinity
 
+    @time_func
     def readout(self, affinity, mv):
         B, CV, T, H, W = mv.shape
 
@@ -161,6 +178,7 @@ class PropagationNetwork(nn.Module):
         self.load_key_encoder = True
         self.load_decoder = True
 
+    @time_func
     def encode_value(self, frame, kf16, masks):
         if self.load_valueenc:
             self.value_encoder_ml = ct.models.MLModel("mlmodels/ValueEnc.mlmodel")
@@ -196,27 +214,44 @@ class PropagationNetwork(nn.Module):
         # f16 = self.value_encoder(frame, kf16, masks, others)
         return f16.unsqueeze(2)  # B*512*T*H*W
 
+    @time_func
     def encode_key(self, frame):
         if self.load_key_encoder:
             self.key_enc_ml = ct.models.MLModel("mlmodels/KeyEnc.mlmodel")
             self.load_key_encoder = False
-            self.key_proj_ml = ct.models.MLModel("mlmodels/KeyProj.mlmodel") # TODO NEED FIX
+            self.key_proj_ml = ct.models.MLModel(
+                "mlmodels/KeyProj.mlmodel"
+            )  # TODO NEED FIX
             self.key_comp_ml = ct.models.MLModel("mlmodels/KeyComp.mlmodel")
         # f16, f8, f4 = self.key_encoder(frame)
-        out = self.key_enc_ml.predict(
-            data={
-                "f": transforms.ToPILImage()(frame[0, ...])
-            }
+        out = self.key_enc_ml.predict(data={"f": frame.numpy()})
+        f16, f8, f4 = out["f16"], out["f8"], out["f4"]
+        f16_thin = torch.from_numpy(
+            self.key_comp_ml.predict(data={"input": f16})["KeyCompOut"]
         )
-        f16, f8, f4 = out["KeyOut"], torch.from_numpy(out["input_137"]), torch.from_numpy(out["input_63"])
-        f16_thin = torch.from_numpy(self.key_comp_ml.predict(data={"input": f16})["KeyCompOut"])
-        k16 = torch.from_numpy(self.key_proj_ml.predict(data={"x": f16})["KeyProjOut"]) # TODO NEED FIX
+        k16 = torch.from_numpy(self.key_proj_ml.predict(data={"x": f16})["KeyProjOut"])
+        return (
+            k16,
+            f16_thin,
+            torch.from_numpy(f16),
+            torch.from_numpy(f8),
+            torch.from_numpy(f4),
+        )
+        # out = self.key_enc_ml.predict(
+        #     data={
+        #         "f": transforms.ToPILImage()(frame[0, ...])
+        #     }
+        # )
+        # f16, f8, f4 = out["KeyOut"], torch.from_numpy(out["input_137"]), torch.from_numpy(out["input_63"])
+        # f16_thin = torch.from_numpy(self.key_comp_ml.predict(data={"input": f16})["KeyCompOut"])
+        # k16 = torch.from_numpy(self.key_proj_ml.predict(data={"x": f16})["KeyProjOut"]) # TODO NEED FIX
 
-        return k16, f16_thin, torch.from_numpy(f16), f8, f4
+        # return k16, f16_thin, torch.from_numpy(f16), f8, f4
 
+    @time_func
     def segment_with_query(self, mk16, mv16, qf8, qf4, qk16, qv16):
         if self.load_decoder:
-            self.decoder_ml = ct.models.MLModel("mlmodels/Decoder.mlmodel")
+            self.decoder_ml = ct.models.MLModel("mlmodels/Decoder.mlmodel", useCPUOnly=True)
             self.load_decoder = False
         affinity = self.memory.get_affinity(mk16, qk16)
 
@@ -233,16 +268,20 @@ class PropagationNetwork(nn.Module):
 
         qv16 = qv16.expand(k, -1, -1, -1)
         m4 = torch.cat([m4, qv16], 1)
-        dec_out = self.decoder_ml.predict(data = {
-            "f16": m4.numpy(), "f8": qf8.numpy(), "f4": qf4.numpy()
-            })["DecoderOut"]
-        #m4, qf8, qf4
+        #return torch.sigmoid(self.decoder(m4, qf8, qf4))
+        dec_out = self.decoder_ml.predict(
+            data={"f16": m4.numpy(), "f8": qf8.numpy(), "f4": qf4.numpy()}
+        )["DecoderOut"]
+
+        # m4, qf8, qf4
         return torch.sigmoid(torch.from_numpy(dec_out))
 
+    @time_func
     def get_W(self, mk16, qk16):
         W = self.attn_memory(mk16, qk16)
         return W
 
+    @time_func
     def get_attention(self, mk16, pos_mask, neg_mask, qk16):
         b, _, h, w = pos_mask.shape
         nh = h // 16
