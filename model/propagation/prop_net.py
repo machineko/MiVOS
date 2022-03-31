@@ -42,7 +42,7 @@ class Decoder(nn.Module):
 
         x = self.pred(F.relu(x))
 
-        x = F.interpolate(x, scale_factor=4, mode="nearest")  # TODO
+        x = F.interpolate(x, scale_factor=4, mode="bilinear", align_corners=False)  # TODO
         return x
 
 
