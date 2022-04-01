@@ -6,7 +6,7 @@ import math
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-
+import platform
 from model.propagation.modules import *
 import coremltools as ct
 from PIL import Image
@@ -251,7 +251,7 @@ class PropagationNetwork(nn.Module):
     @time_func
     def segment_with_query(self, mk16, mv16, qf8, qf4, qk16, qv16):
         if self.load_decoder:
-            self.decoder_ml = ct.models.MLModel("mlmodels/Decoder.mlmodel", useCPUOnly=True)
+            self.decoder_ml = ct.models.MLModel("mlmodels/Decoder.mlmodel", useCPUOnly=True if platform.machine() == "arm64" else False)
             self.load_decoder = False
         affinity = self.memory.get_affinity(mk16, qk16)
 
