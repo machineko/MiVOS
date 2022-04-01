@@ -251,7 +251,8 @@ class PropagationNetwork(nn.Module):
     @time_func
     def segment_with_query(self, mk16, mv16, qf8, qf4, qk16, qv16):
         if self.load_decoder:
-            self.decoder_ml = ct.models.MLModel("mlmodels/Decoder.mlmodel", useCPUOnly=True if platform.machine() == "arm64" else False)
+            self.decoder_ml = ct.models.MLModel("mlmodels/Decoder.mlmodel",
+                                                compute_units=ct.ComputeUnit.CPU_AND_GPU if platform.machine() == "arm64" else ct.ComputeUnit.ALL)
             self.load_decoder = False
         affinity = self.memory.get_affinity(mk16, qk16)
 
