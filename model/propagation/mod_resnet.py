@@ -2,9 +2,8 @@
 mod_resnet.py - A modified ResNet structure
 We append extra channels to the first conv by some network surgery
 """
-
-from collections import OrderedDict
 import math
+from collections import OrderedDict
 
 import torch
 import torch.nn as nn
@@ -12,11 +11,11 @@ from torch.utils import model_zoo
 
 
 def load_weights_sequential(target, source_state, extra_chan=1):
-    
+
     new_dict = OrderedDict()
 
     for k1, v1 in target.state_dict().items():
-        if not 'num_batches_tracked' in k1:
+        if not "num_batches_tracked" in k1:
             if k1 in source_state:
                 tar_v = source_state[k1]
 
@@ -24,34 +23,49 @@ def load_weights_sequential(target, source_state, extra_chan=1):
                     # Init the new segmentation channel with zeros
                     # print(v1.shape, tar_v.shape)
                     c, _, w, h = v1.shape
-                    pads = torch.zeros((c,extra_chan,w,h), device=tar_v.device)
+                    pads = torch.zeros((c, extra_chan, w, h),
+                                       device=tar_v.device)
                     nn.init.orthogonal_(pads)
                     tar_v = torch.cat([tar_v, pads], 1)
 
                 new_dict[k1] = tar_v
-            elif 'bias' not in k1:
-                print('Not OK', k1)
+            elif "bias" not in k1:
+                print("Not OK", k1)
 
     target.load_state_dict(new_dict, strict=False)
 
 
 model_urls = {
-    'resnet18': 'https://download.pytorch.org/models/resnet18-5c106cde.pth',
-    'resnet50': 'https://download.pytorch.org/models/resnet50-19c8e357.pth',
+    "resnet18": "https://download.pytorch.org/models/resnet18-5c106cde.pth",
+    "resnet50": "https://download.pytorch.org/models/resnet50-19c8e357.pth",
 }
 
 
 def conv3x3(in_planes, out_planes, stride=1, dilation=1):
-    return nn.Conv2d(in_planes, out_planes, kernel_size=3, stride=stride,
-                     padding=dilation, dilation=dilation)
+    return nn.Conv2d(
+        in_planes,
+        out_planes,
+        kernel_size=3,
+        stride=stride,
+        padding=dilation,
+        dilation=dilation,
+    )
 
 
 class BasicBlock(nn.Module):
     expansion = 1
 
-    def __init__(self, inplanes, planes, stride=1, downsample=None, dilation=1):
+    def __init__(self,
+                 inplanes,
+                 planes,
+                 stride=1,
+                 downsample=None,
+                 dilation=1):
         super(BasicBlock, self).__init__()
-        self.conv1 = conv3x3(inplanes, planes, stride=stride, dilation=dilation)
+        self.conv1 = conv3x3(inplanes,
+                             planes,
+                             stride=stride,
+                             dilation=dilation)
         self.bn1 = nn.BatchNorm2d(planes)
         self.relu = nn.ReLU(inplace=True)
         self.conv2 = conv3x3(planes, planes, stride=1, dilation=dilation)
@@ -81,12 +95,23 @@ class BasicBlock(nn.Module):
 class Bottleneck(nn.Module):
     expansion = 4
 
-    def __init__(self, inplanes, planes, stride=1, downsample=None, dilation=1):
+    def __init__(self,
+                 inplanes,
+                 planes,
+                 stride=1,
+                 downsample=None,
+                 dilation=1):
         super(Bottleneck, self).__init__()
         self.conv1 = nn.Conv2d(inplanes, planes, kernel_size=1)
         self.bn1 = nn.BatchNorm2d(planes)
-        self.conv2 = nn.Conv2d(planes, planes, kernel_size=3, stride=stride, dilation=dilation,
-                               padding=dilation)
+        self.conv2 = nn.Conv2d(
+            planes,
+            planes,
+            kernel_size=3,
+            stride=stride,
+            dilation=dilation,
+            padding=dilation,
+        )
         self.bn2 = nn.BatchNorm2d(planes)
         self.conv3 = nn.Conv2d(planes, planes * 4, kernel_size=1)
         self.bn3 = nn.BatchNorm2d(planes * 4)
@@ -118,10 +143,15 @@ class Bottleneck(nn.Module):
 
 
 class ResNet(nn.Module):
+
     def __init__(self, block, layers=(3, 4, 23, 3), extra_chan=1):
         self.inplanes = 64
         super(ResNet, self).__init__()
-        self.conv1 = nn.Conv2d(3+extra_chan, 64, kernel_size=7, stride=2, padding=3)
+        self.conv1 = nn.Conv2d(3 + extra_chan,
+                               64,
+                               kernel_size=7,
+                               stride=2,
+                               padding=3)
         self.bn1 = nn.BatchNorm2d(64)
         self.relu = nn.ReLU(inplace=True)
         self.maxpool = nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
@@ -133,7 +163,7 @@ class ResNet(nn.Module):
         for m in self.modules():
             if isinstance(m, nn.Conv2d):
                 n = m.kernel_size[0] * m.kernel_size[1] * m.out_channels
-                m.weight.data.normal_(0, math.sqrt(2. / n))
+                m.weight.data.normal_(0, math.sqrt(2.0 / n))
                 m.bias.data.zero_()
             elif isinstance(m, nn.BatchNorm2d):
                 m.weight.data.fill_(1)
@@ -143,8 +173,12 @@ class ResNet(nn.Module):
         downsample = None
         if stride != 1 or self.inplanes != planes * block.expansion:
             downsample = nn.Sequential(
-                nn.Conv2d(self.inplanes, planes * block.expansion,
-                          kernel_size=1, stride=stride),
+                nn.Conv2d(
+                    self.inplanes,
+                    planes * block.expansion,
+                    kernel_size=1,
+                    stride=stride,
+                ),
                 nn.BatchNorm2d(planes * block.expansion),
             )
 
@@ -155,15 +189,20 @@ class ResNet(nn.Module):
 
         return nn.Sequential(*layers)
 
+
 def resnet18(pretrained=True, extra_chan=0):
     model = ResNet(BasicBlock, [2, 2, 2, 2], extra_chan)
     if pretrained:
-        load_weights_sequential(model, model_zoo.load_url(model_urls['resnet18']), extra_chan)
+        load_weights_sequential(model,
+                                model_zoo.load_url(model_urls["resnet18"]),
+                                extra_chan)
     return model
+
 
 def resnet50(pretrained=True, extra_chan=0):
     model = ResNet(Bottleneck, [3, 4, 6, 3], extra_chan)
     if pretrained:
-        load_weights_sequential(model, model_zoo.load_url(model_urls['resnet50']), extra_chan)
+        load_weights_sequential(model,
+                                model_zoo.load_url(model_urls["resnet50"]),
+                                extra_chan)
     return model
-
