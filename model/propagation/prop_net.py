@@ -94,8 +94,8 @@ class EvalMemoryReader(nn.Module):
         super().__init__()
         self.top_k = top_k
         self.km = km
-        self.aff = ct.models.MLModel("get_affinity.mlmodel")
-        self.rd = ct.models.MLModel("readout.mlmodel")
+        self.aff = ct.models.MLModel("mlmodels/get_affinity.mlmodel")
+        self.rd = ct.models.MLModel("mlmodels/readout.mlmodel")
 
     @time_func
     def get_affinity(self, mk, qk):
