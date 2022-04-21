@@ -75,7 +75,6 @@ def softmax_w_g_top(x, top=None, gauss=None):
         # The types should be the same already
         # some people report an error here so an additional guard is added
         x.zero_().scatter_(1, indices, x_exp.type(x.dtype))  # B * THW * HW
-
         output = x
     else:
         maxes = torch.max(x, dim=1, keepdim=True)[0]
@@ -88,53 +87,66 @@ def softmax_w_g_top(x, top=None, gauss=None):
 
     return output
 
+import numpy as np
 
 class EvalMemoryReader(nn.Module):
     def __init__(self, top_k, km):
         super().__init__()
         self.top_k = top_k
         self.km = km
+        self.aff = ct.models.MLModel("get_affinity.mlmodel")
+        self.rd = ct.models.MLModel("readout.mlmodel")
 
     @time_func
     def get_affinity(self, mk, qk):
-        B, CK, T, H, W = mk.shape
-
-        mk = mk.flatten(start_dim=2)
-        qk = qk.flatten(start_dim=2)
-
-        a = mk.pow(2).sum(1).unsqueeze(2)
-        b = 2 * (mk.transpose(1, 2) @ qk)
-        c = qk.pow(2).sum(1).unsqueeze(1)
-
-        affinity = (-a + b - c) / math.sqrt(CK)  # B, THW, HW
-
-        if self.km is not None:
-            # Make a bunch of Gaussian distributions
-            argmax_idx = affinity.max(2)[1]
-            y_idx, x_idx = argmax_idx // W, argmax_idx % W
-            g = make_gaussian(y_idx, x_idx, H, W, sigma=self.km)
-            g = g.view(B, T * H * W, H * W)
-
-            affinity = softmax_w_g_top(affinity, top=self.top_k, gauss=g)  # B, THW, HW
-        else:
-            if self.top_k is not None:
-                affinity = softmax_w_g_top(
-                    affinity, top=self.top_k, gauss=None
-                )  # B, THW, HW
-            else:
-                affinity = F.softmax(affinity, dim=1)
+        affinity = torch.from_numpy(self.aff.predict({
+            "mk": mk.numpy(),
+            "qk": qk.numpy(),
+            "ck": np.array([20], dtype=np.int32)
+        })["scatter_along_axis_0"])
+        # B, CK, T, H, W = mk.shape
+        #
+        # mk = mk.flatten(start_dim=2)
+        # qk = qk.flatten(start_dim=2)
+        # a = mk.pow(2).sum(1).unsqueeze(2)
+        # b = 2 * (mk.transpose(1, 2) @ qk)
+        # c = qk.pow(2).sum(1).unsqueeze(1)
+        #
+        # affinity = (-a + b - c) / math.sqrt(CK)  # B, THW, HW
+        #
+        # if self.km is not None:
+        #     print("XDdddd")
+        #     # Make a bunch of Gaussian distributions
+        #     argmax_idx = affinity.max(2)[1]
+        #     y_idx, x_idx = argmax_idx // W, argmax_idx % W
+        #     g = make_gaussian(y_idx, x_idx, H, W, sigma=self.km)
+        #     g = g.view(B, T * H * W, H * W)
+        #
+        #     affinity = softmax_w_g_top(affinity, top=self.top_k, gauss=g)  # B, THW, HW
+        # else:
+        #
+        #     if self.top_k is not None:
+        #         print("XDdddd")
+        #
+        #         affinity = softmax_w_g_top(
+        #             affinity, top=self.top_k, gauss=None
+        #         )  # B, THW, HW
+        #     else:
+        #         affinity = F.softmax(affinity, dim=1)
 
         return affinity
 
     @time_func
     def readout(self, affinity, mv):
-        B, CV, T, H, W = mv.shape
+        # B, CV, T, H, W = mv.shape
+        # mo = mv.view(B, CV, T * H * W)
+        # mem = torch.bmm(mo, affinity)  # Weighted-sum B, CV, HW
+        # mem = mem.view(B, CV, H, W)
 
-        mo = mv.view(B, CV, T * H * W)
-        mem = torch.bmm(mo, affinity)  # Weighted-sum B, CV, HW
-        mem = mem.view(B, CV, H, W)
-
-        return mem
+        return torch.from_numpy(self.rd.predict({
+            "affinity": affinity.numpy(),
+            "mv": mv.numpy()
+        })["var_31"])
 
 
 class AttentionMemory(nn.Module):
