@@ -1,3 +1,5 @@
+from dataclasses import dataclass, field
+
 import torch
 import torch.nn as nn
 try:
@@ -7,6 +9,161 @@ except ModuleNotFoundError:
 
 
 __all__ = ['ResNet', 'resnet50']
+
+def generate_path(path: str, name: str) -> str:
+    path = Path(path).resolve()
+    path.mkdir(exist_ok=True, parents=True)
+    path = Path(path, name)
+    save_path = str(path)
+    return save_path
+
+def save_linear(layer: nn.Linear, path: str, name: str):
+    # TODO FIX
+    save_path = generate_path(path, name)
+    np.save(save_path + "_weight.npy", layer.weight.numpy())
+    #params["layer_type"] = "linear"
+
+    if layer.bias:
+        np.save(save_path + "_bias.npy", layer.weight.numpy())
+
+def save_batchnorm2d(layer: nn.BatchNorm2d, path: str, name: str, idx: int):
+    save_path = generate_path(path, name + f"_{idx}")
+    keys = ["eps", "momentum"]
+    params = {}
+    layer_dict = layer.__dict__
+    params["layer_type"] = "batchNorm2d"
+    params["name"] = name
+    params["idx"] = idx
+    for k in keys:
+        params[f"{k}"] = layer_dict[k]
+    params["weightsPath"] = save_path + "_weights.npy"
+    params["biasPath"] = save_path + "_bias.npy"
+    params["num_batches_tracked"] = save_path + "_num_batches_tracked.npy"
+    params["running_mean"] = save_path + "_running_mean.npy"
+    params["running_var"] = save_path + "_running_var.npy"
+    np.save(save_path + "_weights.npy", layer.weight.numpy()[None, :, None, None])
+    np.save(save_path + "_bias.npy", layer.bias.numpy()[None, :, None, None])
+    np.save(save_path + "_num_batches_tracked.npy", layer.num_batches_tracked.numpy().astype(np.float32))
+    np.save(save_path + "_running_mean.npy", layer.running_mean.numpy()[None, :, None, None])
+    np.save(save_path + "_running_var.npy", layer.running_var.numpy())
+    return params
+
+def save_conv2d(layer: nn.Conv2d, path: str, name: str, idx: int) -> dict:
+    save_path = generate_path(path, name + f"_{idx}")
+    keys = ["dilation2d", "kernel_size2d", "padding2d", "stride2d", "in_channels","groups", "out_channels"]
+    params = {}
+    layer_dict = layer.__dict__
+    params["name"] = name
+    params["idx"] = idx
+    params["paddingMode"] = layer.padding_mode
+    params["layer_type"] = "conv2d"
+    for k in keys:
+        tmp_k = k.replace("2d", "")
+        if "2d" not in k:
+            params[f"{k}"] = layer_dict[k]
+        else:
+            if not isinstance(layer_dict[tmp_k], (list, tuple)):
+                params[f"{k}"] = [layer_dict[tmp_k], layer_dict[tmp_k]]
+            else:
+                params[f"{k}"] = layer_dict[tmp_k]
+
+    if isinstance(layer.bias,  torch.Tensor):
+        params["useBias"] = True
+        params["biasPath"] = save_path + "_bias.npy"
+        np.save(params["biasPath"], layer.bias)
+    else:
+        params["useBias"] = False
+    params["weightsPath"] = save_path + "_weights.npy"
+    params["dataLayout"] = "NCHW"
+    np.save(params["weightsPath"], layer.weight)
+    return params
+
+def save_maxpool2d(layer: nn.MaxPool2d, name: str, idx: int) -> dict:
+    keys = ["dilation2d", "kernel_size2d", "padding2d", "stride2d"]
+    params = {}
+    params["layer_type"] = "maxPool2d"
+    layer_dict = layer.__dict__
+    params["data_layout"] = "NCHW"
+    params["name"] = name
+    params["idx"] = idx
+    params["paddingMode"] = "zeros"
+    for k in keys:
+        tmp_k = k.replace("2d", "")
+        if "2d" not in k:
+            params[f"{k}"] = layer_dict[k]
+        else:
+            if not isinstance(layer_dict[tmp_k], (list, tuple)):
+                params[f"{k}"] = [layer_dict[tmp_k], layer_dict[tmp_k]]
+            else:
+                params[f"{k}"] = layer_dict[tmp_k]
+
+    params["ceil_mode"] = layer_dict["ceil_mode"]
+    return params
+
+def save_adaptiveavgpool2d(layer: nn.AdaptiveAvgPool2d, name: str, idx: int) -> dict:
+    params = {}
+    params["layer_type"] = "adaptiveAvgPool2d"
+    params["data_layout"] = "NCHW"
+    params["name"] = name
+    params["idx"] = idx
+    params["outSize2d"] = []
+    if isinstance(layer.output_size, tuple):
+        for i in layer.output_size:
+            if i:
+                params["outSize2d"].append(i)
+            else:
+                params["outSize2d"].append(-1)
+    else:
+        params["outSize2d"] = [layer.output_size, layer.output_size]
+    return params
+
+def save_relu(layer: nn.ReLU, name: str, idx: int) -> dict:
+    params = {}
+    params["layer_type"] = "relu"
+    params["name"] = name
+    params["idx"] = idx
+    params["relu_inplace"] = layer.inplace
+    return params
+
+def save_dropout(layer: nn.Dropout, name: str, idx: int) -> dict:
+    params = {}
+    params["layer_type"] = "dropout"
+    params["name"] = name
+    params["idx"] = idx
+    params["probability"] = layer.p
+    return params
+
+@dataclass
+class Parser:
+    path: str
+    data: dict = field(default_factory=dict)
+    idx: int = 0
+
+    def parse_module(self, module, name: str):
+
+        if isinstance(module, (nn.ModuleDict, nn.ModuleList, nn.Sequential)):
+            for (new_name, new_module) in module.named_children():
+                self.parse_module(new_module, name=f"{name}.{new_name}")
+            return
+        elif list(module.children()) != []:
+            module_name = module.__class__.__name__
+            print(module_name, "Not supported")
+        elif isinstance(module, nn.ReLU):
+            data = save_relu(module, name=name, idx=self.idx)
+        elif isinstance(module, nn.AdaptiveAvgPool2d):
+            data = save_adaptiveavgpool2d(module, name=name, idx=self.idx)
+        elif isinstance(module, nn.Conv2d):
+            data = save_conv2d(module, name=name, path=self.path, idx=self.idx)
+        elif isinstance(module, nn.BatchNorm2d):
+            data = save_batchnorm2d(module, name=name, path=self.path, idx=self.idx)
+        elif isinstance(module, nn.Dropout):
+            data = save_dropout(module, name=name, idx=self.idx)
+        elif isinstance(module, nn.MaxPool2d):
+            data = save_maxpool2d(module, name=name, idx=self.idx)
+        else:
+            raise NotImplementedError(type(module))
+        self.idx += 1
+        self.data["layers"].append(data)
 
 
 model_urls = {

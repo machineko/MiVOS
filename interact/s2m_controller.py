@@ -24,7 +24,8 @@ class S2MController:
 
         h, w = image.shape[-2:]
         unaggre_mask = torch.zeros((self.num_objects, 1, h, w), dtype=torch.float32, device=image.device)
-
+        import time
+        start = time.time()
         for ki in range(1, self.num_objects+1):
             p_srb = (scr_mask==ki).astype(np.uint8)
             n_srb = ((scr_mask!=ki) * (scr_mask!=self.ignore_class)).astype(np.uint8)
@@ -34,5 +35,6 @@ class S2MController:
 
             inputs = torch.cat([image, (prev_mask==ki).float().unsqueeze(0), Rs], 1)
             unaggre_mask[ki-1] = torch.sigmoid(self.s2m_net(inputs))
-
+            print(time.time() - start)
+            start = time.time()
         return unaggre_mask
